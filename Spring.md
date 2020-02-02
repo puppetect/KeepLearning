@@ -1,6 +1,6 @@
 # Spring
 
-## 循环依赖(Circular Reference)
+## Circular Reference
 #### 实例化过程
 ```
 x.java >> (classLoader) >> x.class
@@ -63,13 +63,10 @@ AnnotationAwareAspectJAutoProxyCreator | 处理AOP
 ApplicationContextAwareProcessor | 当应用程序定义的bean实现ApplicationContextAware接口时注入ApplicationContext对象
 InitDestroyAnnotationBeanPostProcessor | 处理自定义的生命周期初始化和销毁方法
 
-
-
-
 #### spring容器
 spring中各种组件的集合叫做spring容器，包括beanFactory, beanDefinition, singletonObjects单例池, singletonFactories作循环依赖用的二级缓存
 
-## AOP代理
+## AOP
 
 #### 手段
 1. spring AOP
@@ -272,7 +269,7 @@ spring的java注解技术
 #### 作用
 将`@Configuration`注解的类进行代理，增强或修改类中的方法，并保证类中被`@Bean`标注的对象是单例对象
 
-## 并发
+## Lock
 
 #### 多线程同步方式
 1. wait/notify
@@ -333,7 +330,7 @@ void unlock(){
     status=0;
 }
 ```
-sleep将当期线程释放cpu并阻塞，但时间不好控制
+sleep将当前线程释放cpu并阻塞，但时间不好控制
 
 4. sleep + 自旋
 ```java
@@ -355,9 +352,9 @@ void unlock(){
 }
 
 void park(){
-    //将当期线程加入到等待队列
+    //将当前线程加入到等待队列
     parkQueue.add(currentThread);
-    //将当期线程释放cpu  阻塞
+    //将当前线程释放cpu  阻塞
     releaseCpu();
 }
 void lock_notify(){
@@ -371,21 +368,7 @@ void lock_notify(){
 
 #### AQS(AbstractQueuedSynchronizer)
 
-**主要属性**
-```java
-private transient volatile Node head; //队首
-private transient volatile Node tail;//尾
-private volatile int state;//锁状态，加锁成功则为1，重入+1 解锁则为0
-private transient Thread exclusiveOwnerThread;//持有锁的线程
-// Node类
-public class Node{
-    volatile Node prev;
-    volatile Node next;
-    volatile Thread thread;
-}
-```
-
-**主要技术栈**
+**技术栈**
 1. 自旋
 2. park/unpark
 3. CAS
@@ -396,4 +379,275 @@ public class Node{
 
 **应用场景**
 线程执行模式有两种：交替执行和竞争执行。
-java1.6前，reentrantLock遇到单个线程或多线程交替执行只会在jdk级别解决同步问题，只有竞争执行才会用到队列和os的api(park&unpark)。而synchronized无论哪种都会调用os函数去解决，所以前者性能更高
+java1.6前，reentrantLock遇到单线程或多线程交替执行时会直接在jdk级别上操作，但遇到竞争执行则用到队列和os的api(park&unpark)。而synchronized无论哪种都会调用os函数去解决，所以前者性能更高。
+java1.6之后，synchronized遇到没单线程或多线程交替执行时会采用偏向锁，在竞争执行时
+
+**逻辑**
+公平锁：
+1. 判断锁是否是自由状态(`c == 0`)
+2. 如果是，则判断自己是否需要排队(`hasQueuedPredecessors()`)，
+    2.1 如果需要，
+    2.2 如果不需要，则CAS加锁
+3. 如果不是，则判断是否已经持有锁
+    3.1 如果持有锁，则把锁状态+1
+    3.2 如果非持有，则入队并阻塞(`acquireQueued(addWaiter(Node.EXCLUSIVE), arg)`)
+
+**核心代码**
+
+*AbstractQueuedSynchronizer.java*
+```java
+// 主要属性
+private transient volatile Node head; //队首
+private transient volatile Node tail;//尾
+private volatile int state;//锁状态，加锁成功则为1，重入+1 解锁则为0
+private transient Thread exclusiveOwnerThread;//持有锁的线程
+
+public class Node{
+    volatile Node prev;
+    volatile Node next;
+    volatile Thread thread;
+    volatile int waitStatus; // 默认是0, CANCELLED:1, SIGNAL:-1, CONDITION:-2, PROPAGATE:-3
+}
+
+public final void acquire(int arg) {
+    if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+}
+
+// 入队后自选两次，若仍拿不到锁则阻塞
+final boolean acquireQueued(final Node node, int arg) {
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) { // 如果当前线程是队列中第一个等待的，则尝试拿锁
+                    setHead(node);
+                    p.next = null; // help GC
+                    return interrupted;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) && // 通过上节点的waitStatus检查是否要阻塞
+                    parkAndCheckInterrupt()) // 调用LockSupport.park(this)进行阻塞
+                    interrupted = true;
+            }
+        } catch (Throwable t) {
+            cancelAcquire(node);
+            throw t;
+        }
+    }
+// 判断是否要排队
+public final boolean hasQueuedPredecessors() {
+        // The correctness of this depends on head being initialized
+        // before tail and on head.next being accurate if the current
+        // thread is first in queue.
+        Node t = tail; // Read fields in reverse initialization order
+        Node h = head;
+        Node s;
+        return h != t && // 队列是否初始化
+            ((s = h.next) == null || s.thread != Thread.currentThread());
+    }
+
+/**
+ * Creates and enqueues node for current thread and given mode.
+ *
+ * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
+ * @return the new node
+ */
+private Node addWaiter(Node mode) {
+    Node node = new Node(mode);
+
+    for (;;) {
+        Node oldTail = tail;
+        if (oldTail != null) {
+            U.putObject(node, Node.PREV, oldTail);
+            if (compareAndSetTail(oldTail, node)) {
+                oldTail.next = node;
+                return node;
+            }
+        } else {
+            initializeSyncQueue();
+        }
+    }
+}
+
+/**
+ * Convenience method to park and then check if interrupted.
+ *
+ * @return {@code true} if interrupted
+ */
+private final boolean parkAndCheckInterrupt() {
+    LockSupport.park(this);
+    return Thread.interrupted();
+}
+
+```
+
+*ReentrantLock.java*
+```java
+public class ReentrantLock implements Lock, java.io.Serializable {
+
+    private final Sync sync;
+
+    /**
+     * 抽象锁类
+     */
+    abstract static class Sync extends AbstractQueuedSynchronizer {
+
+        /**
+         * Performs non-fair tryLock.  tryAcquire is implemented in
+         * subclasses, but both need nonfair try for trylock method.
+         */
+        final boolean nonfairTryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) { // 锁是否是自由状态
+                if (compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) { // 是否已经持有锁
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    /**
+     * 非公平锁类
+     */
+    static final class NonfairSync extends Sync {
+
+        /**
+         * Performs lock.  Try immediate barge, backing up to normal
+         * acquire on failure.
+         */
+        final void lock() {
+            if (compareAndSetState(0, 1))
+                setExclusiveOwnerThread(Thread.currentThread());
+            else
+                acquire(1);
+        }
+
+        protected final boolean tryAcquire(int acquires) {
+            return nonfairTryAcquire(acquires);
+        }
+    }
+
+    /**
+     * 公平锁类
+     */
+    static final class FairSync extends Sync {
+        private static final long serialVersionUID = -3000897897090466540L;
+
+        final void lock() {
+            acquire(1);
+        }
+
+        /**
+         * Fair version of tryAcquire.  Don't grant access unless
+         * recursive call or no waiters or is first.
+         */
+        protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) { // 锁是否是自由状态
+                if (!hasQueuedPredecessors() && // 是否需要排队
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current); // 设置exclusiveOwnerThread为当前线程
+                    return true;
+                }
+            }
+            // 重入
+            else if (current == getExclusiveOwnerThread()) { // 是否已经持有锁
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // 构造方法
+
+    /**
+     * 默认实例化为非公平锁
+     */
+    public ReentrantLock() {
+        sync = new NonfairSync();
+    }
+
+    /**
+     * 传入true将实例化为公平锁
+     */
+    public ReentrantLock(boolean fair) {
+        sync = fair ? new FairSync() : new NonfairSync();
+    }
+
+    // api
+
+    public void lock() {
+        sync.lock();
+    }
+
+    public void lockInterruptibly() throws InterruptedException {
+        sync.acquireInterruptibly(1);
+    }
+}
+```
+#### JOL(Java Object Layout)
+
+**查看对象信息**
+
+```xml
+<dependency>
+    <groupId>org.openjdk.jol</groupId>
+    <artifactId>jol-core</artifactId>
+    <version>0.8</version>
+</dependency>
+```
+
+```java
+System.out.println(ClassLayout.parseInstance(sampleObject).toPrintable());
+```
+
+**java对象组成**
+1. 对象头 （64位os上占12个字节，合96bit)
+
+头对象结构 | 大小 | 说明
+--- | --- | ---
+Mark word | 64bit | 对象头第一部分，存储对象的hashCode(56bit)、分代年龄(4bit)、是否为偏向锁(1bit)、锁标志位(2bit)及其他信息*
+Klass pointer | 32bit | 对象头第二部分，类型指针，指向对象的类元数据，JVM通过这个指针确定该对象是哪个类的实例
+Length | nan | 仅数组对象有，表示数组长度
+
+* 注：java的对象头在对象的不同状态下会有不同的表现形式：
+```
+|----------------------------------------------------------------------------------------------------------------------------------------------|
+|                                           Object Header (128 bits)                                        |     Object Status    | Lock Flag |
+|-----------------------------------------------------------------------------------------------------------|----------------------|-----------|
+|                     Mark Word (64 bits)                                        |   Klass Word (64 bits)   |                      |           |
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|  unused:25 | identity_hashcode:31 | unused:1 | age:4 | biased_lock:1 | lock:2  |  OOP to metadata object  |        Normal        |   0 01    |  无锁
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|  thread*:54 |       epoch:2       | unused:1 | age:4 | biased_lock:1 | lock:2  |  OOP to metadata object  |        Biased        |   1 01    |  偏向锁（单线程重入）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                        ptr_to_lock_record:62                         | lock:2  |                          |  Lightweight Locked  |   0 00    |  轻量锁（多线程交替执行）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                    ptr_to_heavyweight_monitor:62                     | lock:2  |                          |  Heavyweight Locked  |   0 10    |  重量锁（多线程竞争执行）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                                                                      | lock:2  |                          |    Marked for GC     |   0 11    |  GC
+|----------------------------------------------------------------------------------------------------------------------------------------------|
+```
+
+2. 实例数据
+
+3. 填充数据（对齐字节，Java对象字节长度必须是8的倍数）
+
+
+
+
