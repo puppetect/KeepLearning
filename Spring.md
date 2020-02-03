@@ -1,25 +1,40 @@
 # Spring
 
-## Circular Reference
+## IoC (Inversion of Control)
 #### 实例化过程
-```
-x.java >> (classLoader) >> x.class
->> 扫描 AbstractApplicationContext.invokeBeanFactoryPostProcessors(beanFactory)
+
+>> 扫描
+`AbstractApplicationContext.invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory)`
 >> BeanDefinition >> (put map) >> beanFactory.beanDefinitionMap >> (二次扩展)
 >> BeanFactoryPostProcessor >> (update) >> beanFactory.beanDefinitionMap
->> 验证并实例化非懒加载单例对象 beanFactory.preInstantiateSingletons()
->> bean单例缓存池 singletonObjects
+>> 初始化（验证并实例化非懒加载单例对象）
 ```
+-> AbstractApplicationContext.finishBeanFactoryInitialization(ConfigurableListableBeanFactorybeanFactory) ;
+-> DefaultListableBeanFactory.preInstantiateSingletons();
+-> DefaultListableBeanFactory.getBean(beanName);
+-> AbstractBeanFactory.doGetBean(name, null, null, false);
+-> DefaultSingletonBeanRegistry.getSingleton(beanName);
+```
+如果上述返回null，用回调函数调用下面函数
+```
+-> AbstractAutowireCapableBeanFactory.createBean(beanName, mbd, args);
+-> AbstractAutowireCapableBeanFactory.resolveBeforeInstantiation(beanName, mbd);
+-> AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+```
+
+>> bean单例缓存池 singletonObjects
+
 #### 创建bean时的三个缓存
 cache | type | name | remarks
 --- | --- | --- | ---
 一级缓存（单例池） | singletonObjects | Map<String, Object> | Cache of registered singletons, containing the bean names in registration order.
 二级缓存（工厂） | singletonFactories | Map<String, ObjectFactory<?>> | Cache of singleton factories: bean name to ObjectFactory.
 三级缓存 | Map<String, Object> | earlySingletonObjects | Cache of early singleton objects: bean name to bean instance.
+*辅助集合 | Set<String> | singletonsCurrentlyInCreation | Names of beans that are currently in creation.
 
 #### bean的生命周期
 *(AbstractAutowireCapableBeanFactory.java)*
-1. **创建**
+1. **创建对象**
 ```java
 createBeanInstance(beanName, mbd, args);
 ```
@@ -27,7 +42,7 @@ createBeanInstance(beanName, mbd, args);
 ```java
 populateBean(beanName, mbd, instanceWrapper);
 ```
-3. **初始化**
+3. **执行生命周期回调方法**
 ```java
 protected Object initializeBean(beanName, exposedObject, mbd){
     // 执行@PostConstruct方法
@@ -43,10 +58,17 @@ applyBeanPostProcessorAfterInitialization(wrappedBean, beanName);
 *注：该过程也可在填充属性的工厂方法中被提前调用，这也是二级缓存使用工厂的原因*
 
 
-#### 生命周期初始化方法
+#### 生命周期介入方法
 *（按照执行顺序）*
 1. @PostConstruct注释的方法
-2. InitializingBean接口应用类的afterPropertiesSet()方法
+```java
+@PostConstruct
+public void init() {}
+
+@PreDestroy
+public void destroy() {}
+```
+2. InitializingBean接口应用类的afterPropertiesSet()方法，及DisposableBean接口应用类的相关方法
 3. 在bean的配置参数中用init-method指定的方法
 
 
@@ -66,7 +88,7 @@ InitDestroyAnnotationBeanPostProcessor | 处理自定义的生命周期初始化
 #### spring容器
 spring中各种组件的集合叫做spring容器，包括beanFactory, beanDefinition, singletonObjects单例池, singletonFactories作循环依赖用的二级缓存
 
-## AOP
+## AOP (Aspect Oriented Programming)
 
 #### 手段
 1. spring AOP
@@ -126,7 +148,100 @@ Proxy object | 代理对象 | 经过AOP代理的对象
 
 ## Spring MVC
 
-#### 搭建
+#### 原生Servlet3.0
+*IndexServlet.java*
+```java
+@WebServlet("/index")
+public class IndexServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp){
+        super.doGet(req, resp);
+    }
+}
+```
+缺点：
+没有模块化，每个Servlet只能处理一种业务逻辑
+
+#### 自制dispatcherServlet
+*DispatcherServlet.java*
+```java
+@WebServlet(value="/*", loadOnStartup=1) // loadOnStartup设置启动顺序，数值越小启动越早
+public class DispatcherServlet extends HttpServlet {
+    Map<String, Method> map = new HashMap<String, Method>();
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp){
+        // 1.获取path
+        String path = req.getRequestURI();
+        path = path.substring(path.lastIndexOf;
+        // 2.把path和对应的方法放到map中
+        Method method = map.get(path);
+        Class targetClazz = method.getDeclaringClass();
+        try{
+            Object targetObject = targetClazz.getInstance();
+            Class[] paramClazz = method.getParameterTypes();
+            if(paramClazz.length == 0){
+                method.invoke(targetObject);
+            } else if(paramClazz.length == 1){
+                Class tempCls = paramClazz[0];
+                if(tempCls.getSimpleName().equals("HttpServletRequest")){
+                    method.invoke(targetObject, req);
+                } else if(tempCls.getSimpleName().equals("HttpServletResponse")){
+                    method.invoke(targetObject, resp);
+                }
+            } else if (paramClazz.length == 2) {
+                Class tempCls = paramClazz[0];
+                if(tempCls.getSimpleName().equals("HttpServletRequest")){
+                    method.invoke(targetObject, req, resp);
+                } else if(tempCls.getSimpleName().equals("HttpServletResponse")){
+                    method.invoke(targetObject, resp, req);
+                }
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void init() throws ServletException {
+        String rootPath = this.getClass().getResource("/").getPath(); // 得到类所属包所在的根路径
+        rootPath += "\\com\\samplePackage\\";
+        File file = new File(rootPath);
+        File[] files = file.listFiles();
+        for(File tempFile: files){
+            try{
+                Class clazz = Class.forName("com.samplePackage"+tempFile.getName().replaceAll(".class",""));
+                Method[] methods = clazz.getDeclaredMethods();
+                for(Method method: methods){
+                    if(method.isAnnotationPresent(RequestMapping.class)){
+                        RequestMapping rm = method.getDeclaredAnnotation(RequestMapping.class);
+                        map.put(rm.value(), method);
+                    };
+                }
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+```
+*RequestMapping.java*
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RequestMapping {
+    String value();
+}
+```
+注：要让jdk识别注解，需要定义
+1. @Target: 注解出现的位置
+2. @Retention: 注解的生命周期（默认只在java源码当中有，不会被编译到class中，相当于注释的效果）
+
+实例化对象有几种方法：
+1. New
+2. 反射
+3. 克隆
+4. 序列化
+
+#### springmvc搭建
 1. 导入依赖
 pom.xml
 ```xml
@@ -220,7 +335,7 @@ public class AppConfig {}
 ```
 2. 启动tomcat
 
-SpringApplication.java
+*SpringApplication.java*
 ```java
 public class SpringApplication {
     public static void run() {
@@ -236,7 +351,7 @@ public class SpringApplication {
     }
 }
 ```
-Test.java
+*Test.java*
 ```java
 public class Test {
     public static void main(String[] args){
@@ -261,12 +376,12 @@ public class SpringServletContainerInitializer implements ServletContainerInitia
 }
 ```
 
+
+
 #### spring javaconfig
 spring的java注解技术
 
-## Configuration
-
-#### 作用
+#### 配置类
 将`@Configuration`注解的类进行代理，增强或修改类中的方法，并保证类中被`@Bean`标注的对象是单例对象
 
 ## Lock
