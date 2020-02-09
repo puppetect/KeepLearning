@@ -2,27 +2,23 @@
 
 ## IoC (Inversion of Control)
 #### 实例化过程
-
+```
 >> 扫描
-`AbstractApplicationContext.invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory)`
+    -> AbstractApplicationContext.invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory)
 >> BeanDefinition >> (put map) >> beanFactory.beanDefinitionMap >> (二次扩展)
 >> BeanFactoryPostProcessor >> (update) >> beanFactory.beanDefinitionMap
 >> 初始化（验证并实例化非懒加载单例对象）
-```
--> AbstractApplicationContext.finishBeanFactoryInitialization(ConfigurableListableBeanFactorybeanFactory) ;
--> DefaultListableBeanFactory.preInstantiateSingletons();
--> DefaultListableBeanFactory.getBean(beanName);
--> AbstractBeanFactory.doGetBean(name, null, null, false);
--> DefaultSingletonBeanRegistry.getSingleton(beanName);
-```
-如果上述返回null，用回调函数调用下面函数
-```
--> AbstractAutowireCapableBeanFactory.createBean(beanName, mbd, args);
--> AbstractAutowireCapableBeanFactory.resolveBeforeInstantiation(beanName, mbd);
--> AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
-```
-
+    -> AbstractApplicationContext.finishBeanFactoryInitialization(ConfigurableListableBeanFactorybeanFactory) ;
+    -> DefaultListableBeanFactory.preInstantiateSingletons();
+    -> DefaultListableBeanFactory.getBean(beanName);
+    -> AbstractBeanFactory.doGetBean(name, null, null, false);
+    -> DefaultSingletonBeanRegistry.getSingleton(beanName);
+    如果上述返回null，用回调函数调用下面函数
+    -> AbstractAutowireCapableBeanFactory.createBean(beanName, mbd, args);
+    -> AbstractAutowireCapableBeanFactory.resolveBeforeInstantiation(beanName, mbd);(第一次调用后置处理器)
+    -> AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 >> bean单例缓存池 singletonObjects
+```
 
 #### 创建bean时的三个缓存
 cache | type | name | remarks
@@ -57,8 +53,37 @@ applyBeanPostProcessorAfterInitialization(wrappedBean, beanName);
 ```
 *注：该过程也可在填充属性的工厂方法中被提前调用，这也是二级缓存使用工厂的原因*
 
+#### bean的实例化
+> 以下阶段，spring基本没有提供扩展点给程序员
+1. 父类的构造方法`new DefaultListableBeanFactory()`对bean工厂进行初始化。为何要初始化？因为`beanFactory`中有很多重要的属性，比如单例池
+2. `AnnotationConfigApplicationContext`的**无参构造方法**，无参构造方法里面，往`beanDefinitionMap`当中注册很多`beanDefinition`，其中最重要的一个，就是`ConfigurableClassPostProcessor`
+3. 实例化一些功能性对象`AnnotatedBeanDefinitionReader`、`ClassPathBeanDefinitionScanner`
+4. `register(annotatedClasses)`注册配置类到`beanDefinitionMap`中，方便后面实例化这个配置类，配置类为何要实例化？首先配置类也是一个bean，自然要实例化，其次配置里面有很多`@Bean`注解到方法，需要进行CGLIB代理，所以一定要实例化。而创世纪的几个类，则是在无参构造方法里直接注册的。
+5. refresh()
+6. 第一个`invokeBeanFactoryPostProcessors`，执行用户和spring提供的`BeanDefinitionRegistryPostProcessor`和`BeanFactoryPostProcessor`的实现类。
+7. `BeanDefinitionRegistryPostProcessor-ConfigurationClassPostProcessor-postProcessBeanDefinitionRegistry`，类的扫描（扫描包含普通扫描，也包含@Bean的扫描）和类的解析成beanDefinition对象，比如Import的解析也在这个方法里面。Import有分为三种类型，import一个普通类，`ImportSelector`，`ImportBeanDefinitionRegistrar`
+8. `BeanFactoryPostProcessor-ConfigurationClassPostProcessor-postProcessBeanFactory`，判断我们的配置类是不是全配置类full，如果是full需要给配置类加上CGLIB代理
+9. 第二个`registerBeanPostProcessors`，注册spring当中的后置处理器（包括程序员提供的），`beanFactory.addBeanPostProcessor(new BeanPostProcessorChecker(beanFactory, beanProcessorTargetCount))`这些后置处理器，分为程序员提供的和spring内部的，如果是程序员提供的，那么需要加上@Component注解，spring会扫描到单例池中，如果是spring内部的，则不在单例池中，仅仅是维护在beanFactory的一个集合变量当中。不在单例池中就不能通过getBean得到。
+10. 第三个`finishBeanFactoryInitialization`，finishBeanFactoryInitialization初始化单例bean。
+> 以下阶段，spring的bean的实例化过程，严格意义上讲上面的也算bean的实例化过程
+11. getSingleton(String beanName, boolean allowEarlyReference)获取一个bean，首先从单例池中获取，若获取不到，再从singletonFactories当中获取。singletonFactories是spring提前暴露的对象，如果得到了判断是不是FactoryBean，否则直接返回。
+12. getSingleton(String, ObjectFactory<?>)也是首先从单例池中拿，拿不到则调用singletonFactory.getObject()创建对象。
+13. InstantiationAwareBeanPostProcessor.postBeforeInstantiation 如果这个方法返回了对象，spring只会执行BeanPostProcessor的postProcessAfterInitialization()
+14. `doCreateBean->createBeanInstance()`第二次调用后置处理器
+15. `SmartInstantiationAwareBeanPostProcessor-determinCandidateConstructors`推断构造方法
+16. 对象被new出来了（仅仅是一个寡对象）
+17. `applyMergedBeanDefinitionPostprocessors`
+18. `MergedBeanDefinitionPostProcessor-postProcessorMergedBeanDefinition`找出并缓存对象的注解的信息，主要是自动注入
+19. 第四次调用后置处理器，判断是否需要AOP，`addSingletonFactory`--把ObjectFactory对象（包含了访问该对象的API）缓存起来--singletonFactories、singletonFactories当中提供了API访问刚刚创建的对象，而这个API就是一个后置处理的方法。
+> 以下阶段，spring的bean初始化过程，初始化过程包含在实例化的过程中
+20. `populateBean`填充属性、自动注入，这个方法是spring当中极为重要的方法
+21. `InstantiationAwareBeanPostProcessor-postProcessAfterInstantiation`判断对象是否需要填充属性
+22. `InstantiationAwareBeanPostProcessor-postProcessPropertyValues`完成装配，即完成属性的注入，也就是大家常常说的自动注入
+23. `BeanPostProcessor-postProcessBeforeInitialization`
+24. `invokeInitMethods`--执行spring的生命周期方法--init
+25. `BeanPostProcessor-postProcessAfterInitialization`这个方法较简单，经典的应用场景就是AOP的代理
 
-#### 生命周期介入方法
+#### 生命周期初始化回调方法
 *（按照执行顺序）*
 1. @PostConstruct注释的方法
 ```java
@@ -68,13 +93,12 @@ public void init() {}
 @PreDestroy
 public void destroy() {}
 ```
-2. InitializingBean接口应用类的afterPropertiesSet()方法，及DisposableBean接口应用类的相关方法
+2. InitializingBean接口应用类的afterPropertiesSet()方法，及DisposableBean接口应用类的destroy()方法
 3. 在bean的配置参数中用init-method指定的方法
-
-
 
 #### BeanPostProcessor
 BeanPostProcessor是spring框架提供的一个扩展类点（不止一个），通过实现BeanPostProcessor接口，即可介入bean实例化的过程，从而减少beanFactory的负担。比如AOP就是通过BeanPostProcessor和IoC容器建立了联系
+
 BeanPostProcessor | Usage
 --- | ---
 CommonAnnotationBeanPostProcessor | 处理@Resource
@@ -140,7 +164,7 @@ Proxy object | 代理对象 | 经过AOP代理的对象
    b. 找匹配的增强器，也就是根据@Before，@After等注解上的表达式，与当前bean进行匹配，暴露匹配上的。
    c. 对匹配的增强器进行扩展和排序，就是按照@Order或者PriorityOrdered的getOrder的数据值进行排序，越小的越靠前。
 
-4. createProxy有2种创建方法，JDK代理或CGLIB
+4. createProxy有2种创建方法，JDK动态代理或CGLIB
 
    a. 如果设置了proxyTargetClass=true，一定是CGLIB代理
    b. 如果proxyTargetClass=false，目标对象实现了接口，走JDK代理
@@ -319,7 +343,7 @@ AppConfig.java
 public class AppConfig {}
 ```
 
-#### 内嵌web容器(tomcat)
+#### 内嵌servlet容器(tomcat)
 1. 导入依赖
 ```xml
 <dependency>
@@ -765,4 +789,91 @@ Length | nan | 仅数组对象有，表示数组长度
 
 
 
+## MyBatis
 
+#### 两大难点
+1. dao接口如何变成对象？
+    jdk动态代理产生了代理对象
+2. 如何执行sql？
+    通过InvocationHandler接口的实现类的invoke方法得到注解里的sql再执行
+3. 如何把产生的代理**对象**注入到容器中？（如何把第三方或自己产生的对象交给Spring管理）
+    首先，把对象交给spring和把类传给Spring后让Spring去实例化是不同的，后者不能控制对象的产生过程
+    其次，spring中自己实例化有三种方式：
+    1. @Bean (但是需要挨个注解，不高效)
+    2. spring API `beanFactory.registerSingleton(beanName, Object)` （缺点同上）
+    3. FactoryBean （缺点同上）
+```java
+public class MapperFactoryBean implements FactoryBean, InvocationHandler {
+
+    Class mapperInterface;
+
+    public MapperFactoryBean(Class clazz) {
+        this.mapperInterface = clazz;
+    }
+
+    //實現InvocationHandle接口重寫invoke方法，這里就是我們要調用bean對象的邏輯方法
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        Select annotation = method.getAnnotation(Select.class);
+        if(annotation != null) {
+            String s = annotation.value()[0];
+            // 通过s（sql）去获取对象并返回
+        }
+        return proxy;
+    }
+
+    /**
+     * factoryBean接口特性再getBean()會調用此方法
+     * 思路：
+     * 1、我們充分利用factoryBean接口的特性再結合反射就會返回一個代理類充當bean添加到工廠
+     * */
+    @Override
+    public Object getObject() throws Exception {
+        Class [] classes = new Class[]{mapperInterface};
+        // 动态代理
+        Object proxy =  Proxy.newProxyInstance(this.getClass().getClassLoader(),classes,this);
+        return proxy;
+    }
+
+    @Override
+    public Class<?> getObjectType() {
+        return mapperInterface;
+    }
+
+    @Override
+    public boolean isSingleton() {
+        return true;
+    }
+}
+```
+    4. FactoryMethod
+
+## Index
+
+#### 定义
+索引就是按用户任意指定的字段对数据进行排序的一种数据结构
+
+#### b+树
+1. 树的高度就是磁盘I/O的次数，所以b+树一个叶子节点能有多个数据的这种结构能提高效率
+2. 叶子节点完整保留了用户数据，并且是双向链表结构，可以在>=之类的范围查询中提高效率
+
+#### 主键索引、联合索引
+主键索引的叶子节点会保存完整的用户数据，而辅助索引的叶子节点则只会保留主键，通过索引查询到主键后再利用主键索引去查询完整的数据，这个过程称为回表
+
+#### 最左前缀匹配原则
+若某表有复合索引（b,c,d），用前缀不完整的语句(只指定c和d，未指定b)去查询，则无法利用该复合索引。
+反之不然，如果后缀不完整（只指定b，未指定c和d），也能利用复合索引，mysql会一直向右匹配直到遇到范围查询（>, <, between, like）
+
+
+#### 升序索引和降序索引
+
+#### 索引优化
+
+## 面试
+
+1. spring中factoryBean和beanFactory的区别？
+    beanFactory是spring中的工厂，它可以产生和获取bean
+    factoryBean是一个特殊的bean，实现了FactoryBean接口，重写了三个方法：getObject, getObjectType, isSingleton。他本身是个bean，同时getObject方法返回的对象也是bean
+
+2. spring源码中应用了哪些设计模式？
+    策略(beanPostProcessor)、工厂(beanFactory)、
