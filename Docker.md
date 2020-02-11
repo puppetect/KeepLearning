@@ -82,7 +82,6 @@ docker exec -it 容器id或容器名 /bin/bash
 ```
 docker cp 主机文件路径 容器id或容器名:容器路径
 ```
-
 容器中文件拷贝到主机中
 ```
 docker cp 容器id或容器名:容器路径 主机文件路径
@@ -91,4 +90,43 @@ docker cp 容器id或容器名:容器路径 主机文件路径
 **获取容器元信息**
 ```
 docker inspect 容器id或容器名
+```
+
+## Demo
+```
+docker pull mysql
+docker network create net
+docker run --name mysql -p 33060:3306 -e MYSQL_ROOT_PASSWORD=123456 -d --net=net mysql
+docker cp /Users/andong/Docker/mysql/20200210_hzd-remote.sql mysql:/var/hzd.sql
+docker exec -it mysql bash
+```
+
+```
+mysql -h localhost -u root -p（进入mysql下面）
+create database hzd;(创建数据库)
+show databases;(就可看到所有已经存在的数据库，以及刚刚创建的数据库abc)
+use hzd;(进入abc数据库下面)
+show tables;(产看abc数据库下面的所有表,空的)
+source /var/hzd.sql（导入数据库表）
+show tables;(查看abc数据库下面的所有表,就可以看到表了)
+desc hzd;(查看表结构设计)
+select * from ;
+exit;
+GRANT ALL ON *.* TO 'root'@'%';
+ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '123456' PASSWORD EXPIRE NEVER;
+flush privileges;
+```
+
+```
+jar -xvf hzd.war
+jar -cvf hzd.war .
+```
+```
+jdbc_url=jdbc\:mysql\://mysql\:3306/hzd?useUnicode\=true&characterEncoding\=UTF-8&zeroDateTimeBehavior\=convertToNull
+jdbc_username=root
+jdbc_password=123456
+```
+```
+docker pull tomcat
+docker run --name tomcat -d -v /Users/andong/Docker/tomcat/hzd.war:/usr/local/tomcat/webapps/hzd.war -p 8080:8080 --net=net tomcat
 ```
