@@ -139,13 +139,14 @@ public class SampleAspect {
     public void sampleAdvice() {} //切入连接点的内容
 ```
 
+
 #### 术语
 concept | chinese | meaning
 --- | --- | ---
 Join point | 连接点 | 方法的执行
 Pointcut | 切点 | 连接点的集合
-Advice | 通知 | 切入连接点的时机和切入点的业务内容
-Aspect | 切面 | 切点、连接点和通知所在的类称为切面
+Advice | 通知 | 切入连接点的位置和时机
+Aspect | 切面 | 切点、连接点和通知模块化后所在的类称为切面
 Target object | 目标对象 | 原生对象
 Proxy object | 代理对象 | 经过AOP代理的对象
 
@@ -167,8 +168,9 @@ Proxy object | 代理对象 | 经过AOP代理的对象
 4. createProxy有2种创建方法，JDK动态代理或CGLIB
 
    a. 如果设置了proxyTargetClass=true，一定是CGLIB代理
-   b. 如果proxyTargetClass=false，目标对象实现了接口，走JDK代理
+   b. 如果proxyTargetClass=false，目标对象实现了接口，走JDK动态代理
    c. 如果没有实现接口，走CGLIB代理
+   JDK代理的实现方式是基于接口实现，代理类继承Proxy，实现接口。而CGLIB继承被代理的类来实现。
 
 ## Spring MVC
 
