@@ -129,4 +129,12 @@ jdbc_password=123456
 ```
 docker pull tomcat
 docker run --name tomcat -d -v /Users/andong/Docker/tomcat/hzd.war:/usr/local/tomcat/webapps/hzd.war -p 8080:8080 --net=net tomcat
+docker cp /Users/andong/Downloads/Desktop/upload tomcat:/usr/local/tomcat/webapps/hzd/upload
 ```
+```
+docker pull varnish
+docker run --name varnish -v /Users/andong/Docker/varnish/default.vcl:/etc/varnish/default.vcl:ro --tmpfs /usr/local/var/varnish:exec -d -p 6081:80 --net=net varnish
+```
+
+
+
