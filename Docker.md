@@ -130,11 +130,16 @@ jdbc_password=123456
 docker pull tomcat
 docker run --name tomcat -d -v /Users/andong/Docker/tomcat/hzd.war:/usr/local/tomcat/webapps/hzd.war -p 8080:8080 --net=net tomcat
 docker cp /Users/andong/Downloads/Desktop/upload tomcat:/usr/local/tomcat/webapps/hzd/upload
+docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.core/tmp0/wtpwebapps/hzd-web/WEB-INF/views/desktop/index.jsp tomcat:/usr/local/tomcat/webapps/hzd/WEB-INF/views/desktop/index.jsp
+docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.core/tmp0/wtpwebapps/hzd-web/WEB-INF/views/desktop/help/index.jsp tomcat:/usr/local/tomcat/webapps/hzd/WEB-INF/views/desktop/help/index.jsp
+docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.core/tmp0/wtpwebapps/hzd-web/WEB-INF/views/mobile/index.jsp tomcat:/usr/local/tomcat/webapps/hzd/WEB-INF/views/mobile/index.jsp
+docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.core/tmp0/wtpwebapps/hzd-web/WEB-INF/lib/hzd.jar tomcat:/usr/local/tomcat/webapps/hzd/WEB-INF/lib/hzd.jar
 ```
 ```
 docker pull varnish
 docker run --name varnish -v /Users/andong/Docker/varnish/default.vcl:/etc/varnish/default.vcl:ro --tmpfs /usr/local/var/varnish:exec -d -p 6081:80 --net=net varnish
 ```
-
-
-
+```
+docker pull nginx
+docker run --name nginx -d -v /Users/andong/Docker/nginx/nginx.conf:/etc/nginx/nginx.conf -p 80:80 --net=net nginx
+```

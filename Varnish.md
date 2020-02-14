@@ -123,7 +123,6 @@ obj | The object as it is stored in cache. Read only.
 动作 | 含义
 --- | ---
 pass | 当一个请求被pass后，这个请求将通过varnish转发到后端服务器，该请求不会被缓存，后续的请求仍然通过varnish处理。pass可以在*vcl_recv*中调用.
-
 lookup | 当一个请求在*vcl_hash*中被lookup后，varnish将从缓存中提取数据，如果缓存中没有数据，将被设置为pass
 pipe | 和pass相似，都要访问后端服务器，但是当进入pipe模式后，在此连接未关闭前，后续的所有请求都直接发送到后端服务器，不经过varnish处理
 deliver | 请求的目标被缓存，然后发送给客户端，一般在*vcl_backend_response*中调用.
