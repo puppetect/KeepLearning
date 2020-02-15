@@ -92,6 +92,15 @@ docker cp 容器id或容器名:容器路径 主机文件路径
 docker inspect 容器id或容器名
 ```
 
+## 查询开放端口
+```
+netstat -ap tcp | grep -i "listen"
+```
+或
+```
+lsof -PiTCP -sTCP:LISTEN
+```
+
 ## Demo
 ```
 docker pull mysql
@@ -136,10 +145,12 @@ docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.
 docker cp /Users/andong/Projects/Java/.metadata/.plugins/org.eclipse.wst.server.core/tmp0/wtpwebapps/hzd-web/WEB-INF/lib/hzd.jar tomcat:/usr/local/tomcat/webapps/hzd/WEB-INF/lib/hzd.jar
 ```
 ```
-docker pull varnish
 docker run --name varnish -v /Users/andong/Docker/varnish/default.vcl:/etc/varnish/default.vcl:ro --tmpfs /usr/local/var/varnish:exec -d -p 6081:80 --net=net varnish
 ```
 ```
-docker pull nginx
 docker run --name nginx -d -v /Users/andong/Docker/nginx/nginx.conf:/etc/nginx/nginx.conf -p 80:80 --net=net nginx
+```
+```
+docker run --name mongod --net=net -d -p 27017:27017 mongo
+docker run --name mongo -it --net net --rm mongo mongo --host mongod test
 ```
