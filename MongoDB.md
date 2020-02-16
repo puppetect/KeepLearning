@@ -40,13 +40,237 @@ mongodb的一个实例可以拥有一个或多个相互独立的数据库，每�
 ## Manual
 **方法**
 [Shell Methods](https://docs.mongodb.com/manual/reference/method/)
+
 **增删改查**
 [CRUD](https://docs.mongodb.com/manual/crud/)
+
 **聚合框架**
-采用多个构件来创建一个管道，用于对一连串的文档进行处理。包括：筛选($match)、投影($project)、分组($group)、排序($sort)、限制($limit)和跳过($skip)
 [Aggregation](https://docs.mongodb.com/manual/aggregation/)
+
+采用多个构件来创建一个管道，用于对一连串的文档进行处理。包括：筛选($match)、投影($project)、分组($group)、排序($sort)、限制($limit)和跳过($skip)
+
+
 **索引**
 [Index](https://docs.mongodb.com/manual/indexes/)
+
 **副本集**
 [Replica Set](https://docs.mongodb.com/manual/replication/)
 
+## MongoDB Java Driver
+
+#### 基本类
+- MongoClient
+- MongoDatabase
+- MongoCollection
+- Document
+- Bson
+
+#### Spring Boot
+
+**创建连接**
+
+*src/main/resources/application.properties*
+```properties
+spring.mongodb.uri=mongodb+srv://m220student:m220password@mflix-u1zmj.mongodb.net/test?retryWrites=true&w=majority
+spring.mongodb.database=sample_mflix
+```
+
+*src/main/java/mflix/config/MongoDBConfiguration.java*
+```java
+@Configuration
+@Service
+public class MongoDBConfiguration {
+
+    @Bean
+    @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
+    public MongoClient mongoClient(@Value("${spring.mongodb.uri}") String connectionString) {
+
+        ConnectionString connString = new ConnectionString(connectionString);
+
+        //TODO> Ticket: Handling Timeouts - configure the expected
+        // WriteConcern `wtimeout` and `connectTimeoutMS` values
+        MongoClient mongoClient = MongoClients.create(connectionString);
+
+        return mongoClient;
+    }
+}
+```
+
+*src/main/java/mflix/api/daos/AbstractMFlixDao.java*
+```java
+@Configuration
+public abstract class AbstractMFlixDao {
+
+    protected final String MFLIX_DATABASE;
+    protected MongoDatabase db;
+    protected MongoClient mongoClient;
+    @Value("${spring.mongodb.uri}")
+    private String connectionString;
+
+    protected AbstractMFlixDao(MongoClient mongoClient, String databaseName) {
+        this.mongoClient = mongoClient;
+        MFLIX_DATABASE = databaseName;
+        this.db = this.mongoClient.getDatabase(MFLIX_DATABASE);
+    }
+}
+```
+
+*src/main/java/mflix/api/daos/UserDao.java*
+```java
+@Configuration
+public class UserDao extends AbstractMFlixDao {
+
+    private final MongoCollection<User> usersCollection;
+    //TODO> Ticket: User Management - do the necessary changes so that the sessions collection
+    //returns a Session object
+    private final MongoCollection<Document> sessionsCollection;
+
+    private final Logger log;
+
+    @Autowired
+    public UserDao(
+            MongoClient mongoClient, @Value("${spring.mongodb.database}") String databaseName) {
+        super(mongoClient, databaseName);
+        CodecRegistry pojoCodecRegistry =
+                fromRegistries(
+                        MongoClientSettings.getDefaultCodecRegistry(),
+                        fromProviders(PojoCodecProvider.builder().automatic(true).build()));
+
+        usersCollection = db.getCollection("users", User.class).withCodecRegistry(pojoCodecRegistry);
+        log = LoggerFactory.getLogger(this.getClass());
+        //TODO> Ticket: User Management - implement the necessary changes so that the sessions
+        // collection returns a Session objects instead of Document objects.
+        sessionsCollection = db.getCollection("sessions");
+    }
+
+    // ...
+}
+```
+
+**Query Builders**
+[Docs](http://mongodb.github.io/mongo-java-driver/3.8/builders/)
+
+- Filters (`import static com.mongodb.client.model.Filters.*;`)
+- Projections （`import static com.mongodb.client.model.Projections.*;`)
+- Sorts (`import static com.mongodb.client.model.Sorts.*;`)
+- Aggregation (`import static com.mongodb.client.model.Aggregates.*;`)
+- Updates (`import static com.mongodb.client.model.Updates.*;`)
+- Indexes (`import static com.mongodb.client.model.Indexes.*;`)
+
+例：
+```java
+Bson queryFilter = eq("cast", "Salma Hayek");
+Document result = moviesCollection
+        .find(queryFilter)
+        .sort(ascending("year"))
+        .limit(1)
+        .projection(fields(include("title", "year")))
+        .iterator();
+        .tryNext();
+```
+
+等同于：
+```java
+Document queryFilter = new Document("cast", "Salma Hayek");
+MongoCursor result = moviesCollection
+        .find(queryFilter)
+        .sort(Sorts.ascending("year"))
+        .limit(1)
+        .projection(new Document("title", 1).append("year", 1))
+        .iterator();
+Document result = cursor.tryNext();
+```
+*\* Field projection is not performed in the MongoDB Java Driver find method.*
+
+等同于：
+```
+db.movies.aggregate([{
+    $match: {
+        "cast": "Salma Hayek"
+    }
+}, {
+    $sort: {
+        "year": 1
+    }
+}, {
+    $limit: 1
+}, {
+    $project: {
+        "title": 1,
+        "year": 1
+    }
+}])
+```
+
+等同于：
+```
+db.movied.find({"cast": "Salma Hayek"}, {"title":1, "year": 1}).sort({"year": 1}).limit(1)
+```
+
+** Using POJO **
+[Pojo Docs](http://mongodb.github.io/mongo-java-driver/3.6/driver/getting-started/quick-start-pojo/)
+[Codecs Tutorial](http://mongodb.github.io/mongo-java-driver/3.2/bson/codecs/)
+
+- POJO和BSON之间的转换可以通过自定义Codec实现
+- POJO和BSON属性字段可通过注解`@BsonProperty`关联
+- `_id`会自动生成
+- POJO和BSON不同类型的相同字段可以通过两种方式转化：
+1. Using a POJO in conjunction with a Custom Codec
+2. Using a POJO with a Default Codec and a custom field type conversion script
+
+```java
+public class UserDao extends AbstractMFlixDao {
+
+    private final MongoCollection<User> usersCollection;
+
+    private final Logger log;
+
+    @Autowired
+    public UserDao(
+            MongoClient mongoClient, @Value("${spring.mongodb.database}") String databaseName) {
+        super(mongoClient, databaseName);
+        CodecRegistry pojoCodecRegistry =
+                fromRegistries(
+                        MongoClientSettings.getDefaultCodecRegistry(),
+                        fromProviders(PojoCodecProvider.builder().automatic(true).build()));
+
+        usersCollection = db.getCollection("users", User.class).withCodecRegistry(pojoCodecRegistry);
+        log = LoggerFactory.getLogger(this.getClass());
+    }
+
+    /**
+     * Inserts the `user` object in the `users` collection.
+     *
+     * @param user - User object to be added
+     * @return True if successful, throw IncorrectDaoOperation otherwise
+     */
+    public boolean addUser(User user) {
+        //TODO > Ticket: Durable Writes -  you might want to use a more durable write concern here!
+        usersCollection.insertOne(user);
+        return true;
+        //TODO > Ticket: Handling Errors - make sure to only add new users
+        // and not users that already exist.
+
+    }
+
+```
+
+** Cursor Methos and Aggregation Equivalents
+- Cursor methods have equivalent aggregation stages
+- The order by which cursor methods are appended to the find iterable does not impact the results
+- **The order by which aggregation stages are defined in the pipeline does!**
+
+**`writeConcern`**
+\{w:1\}
+- Only requests an acknowledgement that **one** node applied the write
+- This is the default writeConcern in MongoDB
+
+\{w:'majority'\}
+- Requests acknowledgement that a **majority of nodes** in the replica set applied the write
+- Takes longer than `w: 1`. (But there's no additional load on the server, so the primary can still perform the same number of writes per second)
+- Is more durable than `w: 1`. Useful for ensuring vital writes are majority-committed, because a write will not be rolled back during fail over.
+
+\{w: 0\}
+- Does **not** request an acknowledgement that any nodes applied the write ("Fire-and-forget")
+- Fastest writeConcern level
+- Least durable writeConcern
