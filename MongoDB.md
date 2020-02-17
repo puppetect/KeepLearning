@@ -57,6 +57,7 @@ mongodb的一个实例可以拥有一个或多个相互独立的数据库，每�
 [Replica Set](https://docs.mongodb.com/manual/replication/)
 
 ## MongoDB Java Driver
+[mongo-java-driver Docs](http://mongodb.github.io/mongo-java-driver/4.0/)
 
 #### 基本类
 - MongoClient
@@ -260,7 +261,7 @@ public class UserDao extends AbstractMFlixDao {
 - The order by which cursor methods are appended to the find iterable does not impact the results
 - **The order by which aggregation stages are defined in the pipeline does!**
 
-**`writeConcern`**
+**Write Concern**
 \{w:1\}
 - Only requests an acknowledgement that **one** node applied the write
 - This is the default writeConcern in MongoDB
@@ -274,3 +275,29 @@ public class UserDao extends AbstractMFlixDao {
 - Does **not** request an acknowledgement that any nodes applied the write ("Fire-and-forget")
 - Fastest writeConcern level
 - Least durable writeConcern
+
+**Read Concerns**
+- Represent different levels of "read isolation"
+- Can be used to specify a consistent view of the database
+- The default read concern is "local": This does not check that data has been replicated
+- The read concern "majority" allow for more durable reads: This on returns data that has been replicated to a majority of nodes
+
+**Join**
+- $lookup allows us to pass an aggregation pipeline to the command that can transform the data before that data is actually joined.
+- `let` allows us to declare variables in our pipeline, referring to document fields in our source collection.
+- Compass' Export-to-Language feature produces aggregations in our application's native language.
+
+**Bulk Write**
+- Allow database clients to send multiple writes.
+- Ordered Bulk Write: default. Executes writes sequentially. Will end execution after first write failure
+- Unordered Bulk Write: has to be specified with the flag: `{ordered: false}`. Executes writes in parallel.
+- In sharded collection, ordered bulk writes are expected to take a little longer because write operations need to be routed to the designated shards. And unordered bulk write might reach the mongos in one batch, but then it has to be serialized across each designated shard. Regardless of the designated shard, the write operation needs to be evaluated to see if we should continue or exit the execution of the rest of the batch.
+
+**Connection Pooling**
+- Connection pools allow for reuse of connections
+- Subsequent requests appear faster to the client
+- Default size of 100
+
+## 最佳实践
+- 尽量避免过大文件，单个document最大为16mb
+- 适用于**一次写入，多次读取**的数据
