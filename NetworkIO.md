@@ -1,8 +1,8 @@
 # BIO/NIO
 
-## BIO
+## 原理
 
-#### 示例
+#### BIO
 *BIOServer.java*
 ```java
 public class BIOServer {
@@ -45,7 +45,7 @@ public class Client{
 - 如果开很多线程，碰到连接上但不活跃的时候，依然会阻塞在read阶段，浪费cpu资源
 
 #### 改进
-单线程处理并发
+单线程处理并发(多路复用：多个网络连接复用同一个线程)
 ```java
 public class BIOServer {
 
@@ -71,16 +71,14 @@ public class BIOServer {
                     list.add(socket);
                 }
 
-                for(SocketChannel sc: socketChannelList){
+                for(SocketChannel channel: socketChannelList){
                     // non-blocking operation
                     ByteBuffer byteBuffer = ByteBuffer.allocate(512);
-                    int readBytes = socket.getInputStream().read(bytes);
+                    int readBytes = channel.read(byteBuffer);
 
-                    if(readByes != -1){
-                        byteBuffer.flip(); //写-》读
-                        String content = Charset.forName("utf-8").decode(byteBuffer);
-                        System.out.println(content);
-                        byteBuffer.clear();
+                    if(readByes != 0){
+                        byteBuffer.flip(); //写->读
+                        System.out.println(new String(byteBuffer.array()));
                     }
                 }
             }
@@ -90,4 +88,46 @@ public class BIOServer {
     }
 }
 ```
-缺点：依然解决不了不活跃线程浪费cpu的问题
+缺点：依然解决不了不活跃线程浪费cpu的问题，对每个线程是否接收数据作轮询太耗资源
+
+#### 再改进
+将上面for循环读数据的操作交给操作系统处理，操作系统会调用相关函数。比如linux的epoll和windows的select。
+
+*redis底层选用IO通信模型也是用到了epoll，epoll当有通信来的时候可以直接定位到那个socket，而不需要循环。所以比select效率高，能支持高并发高可用
+
+#### NIO
+> Non-blocking io uses a single thread or only a small number of multi-threads. Each connection shares a single thread. Thread resources can be released to handle other requests while waiting (without events). The main thread allocates resources to handle related events by notifying (waking up) the main thread through event-driven model when events such as accept/read/write occur. java.nio.channels.Selector is the observer of events in this model. It can register multiple events of SocketChannel on a Selector. When no event occurs, the Selector is blocked and wakes up the Selector when events such as accept/read/write occur in SocketChannel.(*[Analysis of NIO selector principle](https://programmer.ink/think/analysis-of-nio-selector-principle.html)*)
+
+![NIO Diagram](https://programmer.ink/images/think/108539a1a691325e31b8f18a04e2a52d.jpg)
+
+```java
+selector = Selector.open();
+
+ServerSocketChannel ssc = ServerSocketChannel.open();
+ssc.configureBlocking(false);
+ssc.socket().bind(new InetSocketAddress(port));
+
+ssc.register(selector, SelectionKey.OP_ACCEPT);
+
+while (true) {
+
+    // select() block, waiting for an event to wake up
+    int selected = selector.select();
+
+    if (selected > 0) {
+        Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
+        while (selectedKeys.hasNext()) {
+            SelectionKey key = selectedKeys.next();
+            if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
+                // Handling accept events
+            } else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
+                // Handling read events
+            } else if ((key.readyOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE) {
+                // Handling write events
+            }
+            selectedKeys.remove();
+        }
+    }
+}
+```
+
