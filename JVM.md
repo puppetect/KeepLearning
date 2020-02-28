@@ -75,6 +75,7 @@ Jstack 生成java虚拟机当前时刻的线程快照
 5. 卸载
 
 #### 类加载器的种类
+java中的类遵循**按需加载**。它可以使java类动态加载到jvm中运行，即可在程序运行时再加载类，提供了很灵活的动态加载方式。
 **启动类加载器(Bootstrap ClassLoader)**
 负责加载JRE的核心类库，如JRE目标下的rt.jar, charset.jar等
 **扩展类加载器(Extension Classloader)**
@@ -92,6 +93,8 @@ Jstack 生成java虚拟机当前时刻的线程快照
 双亲委派模式的优势
 - 沙箱安全机制：比如自己写的String.class类就不会被加载，这样可以防止核心库被随意篡改
 - 避免类的重复加载：当父ClassLoader已经加载了该类的时候，就不需要子ClassLoader再加载一次
+
+
 
 ## GC算法和收集器
 #### 如何判断对象可以被回收
@@ -184,6 +187,7 @@ Tomcat可以直接加载JAVA_OPTS变量里
 3. 分析GC原因，调优JVM参数
 
 可以用GCEasy对日志可视化
+
 
 ## 面试
 1. mysql和tomcat是如何打破双亲委派机制的？tomcat自己的类加载机制？
