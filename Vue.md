@@ -541,7 +541,7 @@ new Vue({
 
     <script type="text/x-template" id="plan-picker-template">
         <div class="plans">
-            <plan-picker-item v-for="plan in plans" :name="plan" @select="selectPlan" :selected-plan="selectedPlan"></plan>
+            <plan-picker-item v-for="plan in plans" :name="plan" @select="selectPlan" :selected-plan="selectedPlan"></plan-picker-item>
         </div>
     </script>
 </body>
@@ -557,4 +557,132 @@ Vue.component('blog-post', {
 ```xml
 <!-- kebab-case in HTML -->
 <blog-post post-title="hello!"></blog-post>
+```
+
+## Router
+`<router-view />`
+is a functional component that always renders the content of the active page
+`<router-link to="/">Home</router-link>`
+is the component for enabling user navigation in a router-enabled app without refreshing the page. Use `<router-link>` for internal link and `<a>` for external link.
+
+**route object**
+requires a path, a name and a component property
+```json
+{
+    path: "/",
+    name: "home",
+    component: Home
+}
+```
+
+**lazy load**
+route level code-splitting, will generates a seperate chunk (about.[hash].js) for the route which is lazy-loaded when the route is visited.
+`/* webpackChunkName: "about" */ `
+This is a magic comment that will give splitted js chunk a name
+```json
+{
+    path: "/about",
+    name: "about",
+    component: () => import(/* webpackChunkName: "about" */ "./views/About.vue")
+}
+```
+
+**named routes**
+allows us to link directly to the route without knowing the path, which means if you later change the path then we don't have to refactor anything in any component that links to this route, as everything is controlled in the router.js.
+To use named routes, you just add an object with the name property and the value being the name of the route you want to link to.
+*Home.vue*
+```xml
+<router-link :to="{ name: 'SampleRouteName' }"> sampleRoute </router-link>
+```
+**route params**
+*Home.vue*
+<router-link :to="{ name: 'SampleRouteName', params: { id: 1 } }"> sampleRoute </router-link>
+*router.js*
+```javascript
+{
+    path: "/sample-route/:id",
+    name: "SampleRouteName",
+    component: () =>
+      import(/* webpackChunkName: "TheSample" */ "../views/TheSample.vue" )
+}
+```
+*TheSample.vue*
+```xml
+<template>
+  <h2>The sample id is: {{ this.$route.params.id }}</h2>
+</template>
+```
+
+**reload with new data*
+By default the Vue Router does not notice any change if the same component is being used. If we need the component to be reloaded with the new data, we need to bind a key to the `router-view` with the value of `$route.path`. With the key, any change to the path will trigger a reload of the component.
+```xml
+<router-view :key="$route.path" />
+```
+
+**hash mode**
+The default mode of Vue Router is hash mode, it uses the URL hash to simulate a full URL so that the page won't be reloaded when the URL changes.
+To get rid of the hash, we can use the router's history mode, which uses the *history.pushState* API to achieve URL navigation without a page reload.
+*router.js*
+```javascript
+export default new Router({
+    mode: 'history',
+    routes
+})
+```
+
+**props**
+Using `$route` in component creates a tight coupling with the route which limits the flexibility of the component as it can only be used on certain URLs. To decouple the component from its router, we can use `props`
+*router.js*
+```javascript
+const routes = [
+  {
+    path: "/details/:slug",
+    name: "DestinationDetails",
+    props: true,
+    component: () =>
+      import(
+        /* webpackChunkName: "DestinationDetails" */ "../views/DestinationDetails.vue"
+      )
+  }
+]
+```
+*Home.vue*
+```xml
+<router-link :to="{name: 'DestinationDetails',params: { slug: destination.slug }}">{{ destination.name }}</router-link>
+```
+*DestinationDetails.vue*（props直接接收传进来的slug参数，不管是input、路径参数还是其他方式）
+```javascript
+import store from "@/store.js";
+export default {
+  props: {
+    slug: {
+      type: String,
+      required: true
+    }
+  }
+};
+```
+**nested route**
+*router.js*
+```javascript
+{
+    path: "/destination/:slug",
+    name: "DestinationDetails",
+    props: true,
+    component: () =>
+      import(
+        /* webpackChunkName: "DestinationDetails" */ "../views/DestinationDetails.vue"
+      ),
+    children: [
+      {
+        path: ":experienceSlug",
+        name: "experienceDetails",
+        props: true,
+        component: () =>
+          import(
+            /* webpackChunkName: "ExperienceDetails" */ "../views/ExperienceDetails.vue"
+          )
+      }
+    ]
+}
 ```
