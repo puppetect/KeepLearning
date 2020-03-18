@@ -613,7 +613,7 @@ To use named routes, you just add an object with the name property and the value
 </template>
 ```
 
-**reload with new data*
+**reload with new data**
 By default the Vue Router does not notice any change if the same component is being used. If we need the component to be reloaded with the new data, we need to bind a key to the `router-view` with the value of `$route.path`. With the key, any change to the path will trigger a reload of the component.
 ```xml
 <router-view :key="$route.path" />
@@ -686,3 +686,75 @@ export default {
     ]
 }
 ```
+
+## Transition
+Vue provides us with a transition wrapper component allowing us to add entering or leaving transitions for any element or component. When an element is wrapped in a transition component, Vue will automatically check to see if the target element has CSS transitions or animations applied, and if it does, the CSS transition class will be added or removed at the appropriate timings.
+We don't need to import transition component as we can use it directly in the template.
+We can use the name slide which will apply the transition of the CSS class slide, and a mode of out-in, which means the current element transitions out first, and when complete, the new element transitions in.
+```xml
+<template>
+  <div id="app">
+    <transition name="fade" mode="out-in">
+      <router-view :key="$route.path" />
+    </transition>
+  </div>
+</template>
+<style>
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity 0.1s, transform 0.1s;
+}
+.slide-enter,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateY(1%);
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
+```
+
+## Navigation Guards
+You can think of it as Vue's lifecycle hooks that allows us to run code before and after the navigation takes place.
+*router.js*
+```javascript
+{
+    path: "/destination/:slug",
+    name: "DestinationDetails",
+    props: true,
+    component: () =>
+      import(
+        /* webpackChunkName: "DestinationDetails" */ "../views/DestinationDetails.vue"
+      ),
+    children: [
+      {
+        path: ":experienceSlug",
+        name: "experienceDetails",
+        props: true,
+        component: () =>
+          import(
+            /* webpackChunkName: "ExperienceDetails" */ "../views/ExperienceDetails.vue"
+          )
+      }
+    ],
+    beforeEnter: (to, from, next) => {
+      const exists = store.destinations.find(
+        destination => destination.slug === to.params.slug
+      );
+      if (exists) {
+        next();
+      } else {
+        next({ name: "notFound" });
+      }
+    }
+  }
+```
+
+## Scroll Behavior
+To control the scroll behavior, we can add the scrollBehavior function to the router, which receives the to and from route objects. The third argument savedPosition will result in a native-like behavior when navigating with back/forward buttons in the browser. If you want to simulate the 'scroll to anchor' behavior, we use the `to.hash`. If there is a hash, we scroll to the anchor by returning the selector, whereas if the returned position is falsie or an empty object, we will retain the current scroll position.
