@@ -189,10 +189,607 @@ Tomcat可以直接加载JAVA_OPTS变量里
 可以用GCEasy对日志可视化
 
 
+## 锁
+
+#### 多线程同步方式
+1. wait/notify
+2. synchronized
+3. ReentrantLock
+4. ReentrantReadWriteLock
+5. CountdownLatch
+...
+
+#### 实现方法
+1. 自旋
+```java
+// pseudo-code
+volatile int status=0;//标识---是否有线程在同步块-----是否有线程上锁成功
+void lock(){
+    while(!compareAndSet(0,1)){
+    }
+    // locked logic
+}
+void unlock(){
+    status=0;
+}
+boolean compareAndSet(int except,int newValue){
+    //cas操作,修改status成功则返回true
+}
+```
+耗费cpu资源。没有竞争到锁的线程会一直空转（占用cpu资源进行cas操作）
+
+2. yield + 自旋
+```java
+// pseudo-code
+volatile int status=0;
+void lock(){
+    while(!compareAndSet(0,1)){
+     yield();
+    }
+    // locked logic
+    unlock()
+}
+void unlock(){
+    status=0;
+}
+```
+当线程竞争锁失败时，会调用yield方法让出cpu。自旋+yield的方式并没有完全解决问题，当系统只有两个线程竞争锁时，yield是有效的。需要注意的是该方法只是当前让出cpu，有可能操作系统下次还是选择运行该线程
+
+3. sleep + 自旋
+```java
+// pseudo-code
+volatile int status=0;
+void lock(){
+    while(!compareAndSet(0,1)){
+     sleep(10);
+    }
+    // locked logic
+    unlock()
+}
+void unlock(){
+    status=0;
+}
+```
+sleep将当前线程释放cpu并阻塞，但时间不好控制
+
+4. sleep + 自旋
+```java
+// pseudo-code
+volatile int status=0;
+Queue parkQueue;
+
+void lock(){
+    while(!compareAndSet(0,1)){
+        //
+        park();
+    }
+    // locked logic
+   unlock()
+}
+
+void unlock(){
+    lock_notify();
+}
+
+void park(){
+    //将当前线程加入到等待队列
+    parkQueue.add(currentThread);
+    //将当前线程释放cpu  阻塞
+    releaseCpu();
+}
+void lock_notify(){
+    status=0;
+    //得到要唤醒的线程头部线程
+    Thread t=parkQueue.header();
+    //唤醒等待线程
+    unpark(t);
+}
+```
+
+#### AQS(AbstractQueuedSynchronizer)
+
+**技术栈**
+1. 自旋
+2. park/unpark
+3. CAS
+
+**两个实现类**
+1. `NonfairSync`
+2. `FairSync`
+
+**应用场景**
+线程执行模式有两种：交替执行和竞争执行。
+java1.6前，reentrantLock遇到单线程或多线程交替执行时会直接在jdk级别上操作，但遇到竞争执行则用到队列和os的api(park&unpark)。而synchronized无论哪种都会调用os函数去解决，所以前者性能更高。
+java1.6之后，synchronized遇到没单线程或多线程交替执行时会采用偏向锁，在竞争执行时
+
+**逻辑**
+公平锁：
+1. 判断锁是否是自由状态(`c == 0`)
+2. 如果是，则判断自己是否需要排队(`hasQueuedPredecessors()`)，
+    2.1 如果需要，
+    2.2 如果不需要，则CAS加锁
+3. 如果不是，则判断是否已经持有锁
+    3.1 如果持有锁，则把锁状态+1
+    3.2 如果非持有，则入队并阻塞(`acquireQueued(addWaiter(Node.EXCLUSIVE), arg)`)
+
+**核心代码**
+
+*AbstractQueuedSynchronizer.java*
+```java
+// 主要属性
+private transient volatile Node head; //队首
+private transient volatile Node tail;//尾
+private volatile int state;//锁状态，加锁成功则为1，重入+1 解锁则为0
+private transient Thread exclusiveOwnerThread;//持有锁的线程
+
+public class Node{
+    volatile Node prev;
+    volatile Node next;
+    volatile Thread thread;
+    volatile int waitStatus; // 默认是0, CANCELLED:1, SIGNAL:-1, CONDITION:-2, PROPAGATE:-3
+}
+
+public final void acquire(int arg) {
+    if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+}
+
+// 入队后自选两次，若仍拿不到锁则阻塞
+final boolean acquireQueued(final Node node, int arg) {
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                final Node p = node.predecessor();
+                if (p == head && tryAcquire(arg)) { // 如果当前线程是队列中第一个等待的，则尝试拿锁
+                    setHead(node);
+                    p.next = null; // help GC
+                    return interrupted;
+                }
+                if (shouldParkAfterFailedAcquire(p, node) && // 通过上节点的waitStatus检查是否要阻塞
+                    parkAndCheckInterrupt()) // 调用LockSupport.park(this)进行阻塞
+                    interrupted = true;
+            }
+        } catch (Throwable t) {
+            cancelAcquire(node);
+            throw t;
+        }
+    }
+// 判断是否要排队
+public final boolean hasQueuedPredecessors() {
+        // The correctness of this depends on head being initialized
+        // before tail and on head.next being accurate if the current
+        // thread is first in queue.
+        Node t = tail; // Read fields in reverse initialization order
+        Node h = head;
+        Node s;
+        return h != t && // 队列是否初始化
+            ((s = h.next) == null || s.thread != Thread.currentThread());
+    }
+
+/**
+ * Creates and enqueues node for current thread and given mode.
+ *
+ * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
+ * @return the new node
+ */
+private Node addWaiter(Node mode) {
+    Node node = new Node(mode);
+
+    for (;;) {
+        Node oldTail = tail;
+        if (oldTail != null) {
+            U.putObject(node, Node.PREV, oldTail);
+            if (compareAndSetTail(oldTail, node)) {
+                oldTail.next = node;
+                return node;
+            }
+        } else {
+            initializeSyncQueue();
+        }
+    }
+}
+
+/**
+ * Convenience method to park and then check if interrupted.
+ *
+ * @return {@code true} if interrupted
+ */
+private final boolean parkAndCheckInterrupt() {
+    LockSupport.park(this);
+    return Thread.interrupted();
+}
+
+```
+
+*ReentrantLock.java*
+```java
+public class ReentrantLock implements Lock, java.io.Serializable {
+
+    private final Sync sync;
+
+    /**
+     * 抽象锁类
+     */
+    abstract static class Sync extends AbstractQueuedSynchronizer {
+
+        /**
+         * Performs non-fair tryLock.  tryAcquire is implemented in
+         * subclasses, but both need nonfair try for trylock method.
+         */
+        final boolean nonfairTryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) { // 锁是否是自由状态
+                if (compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) { // 是否已经持有锁
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    /**
+     * 非公平锁类
+     */
+    static final class NonfairSync extends Sync {
+
+        /**
+         * Performs lock.  Try immediate barge, backing up to normal
+         * acquire on failure.
+         */
+        final void lock() {
+            if (compareAndSetState(0, 1))
+                setExclusiveOwnerThread(Thread.currentThread());
+            else
+                acquire(1);
+        }
+
+        protected final boolean tryAcquire(int acquires) {
+            return nonfairTryAcquire(acquires);
+        }
+    }
+
+    /**
+     * 公平锁类
+     */
+    static final class FairSync extends Sync {
+        private static final long serialVersionUID = -3000897897090466540L;
+
+        final void lock() {
+            acquire(1);
+        }
+
+        /**
+         * Fair version of tryAcquire.  Don't grant access unless
+         * recursive call or no waiters or is first.
+         */
+        protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) { // 锁是否是自由状态
+                if (!hasQueuedPredecessors() && // 是否需要排队
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current); // 设置exclusiveOwnerThread为当前线程
+                    return true;
+                }
+            }
+            // 重入
+            else if (current == getExclusiveOwnerThread()) { // 是否已经持有锁
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // 构造方法
+
+    /**
+     * 默认实例化为非公平锁
+     */
+    public ReentrantLock() {
+        sync = new NonfairSync();
+    }
+
+    /**
+     * 传入true将实例化为公平锁
+     */
+    public ReentrantLock(boolean fair) {
+        sync = fair ? new FairSync() : new NonfairSync();
+    }
+
+    // api
+
+    public void lock() {
+        sync.lock();
+    }
+
+    public void lockInterruptibly() throws InterruptedException {
+        sync.acquireInterruptibly(1);
+    }
+}
+```
+#### JOL(Java Object Layout)
+
+**查看对象信息**
+
+```xml
+<dependency>
+    <groupId>org.openjdk.jol</groupId>
+    <artifactId>jol-core</artifactId>
+    <version>0.8</version>
+</dependency>
+```
+
+```java
+System.out.println(ClassLayout.parseInstance(sampleObject).toPrintable());
+```
+
+**java对象组成**
+1. 对象头 （64位os上占12个字节，合96bit)
+
+头对象结构 | 大小 | 说明
+--- | --- | ---
+Mark word | 64bit | 对象头第一部分，存储对象的hashCode(56bit)、分代年龄(4bit)、是否为偏向锁(1bit)、锁标志位(2bit)及其他信息*
+Klass pointer | 32bit | 对象头第二部分，类型指针，指向对象的类元数据，JVM通过这个指针确定该对象是哪个类的实例
+Length | nan | 仅数组对象有，表示数组长度
+
+* 注：java的对象头在对象的不同状态下会有不同的表现形式：
+```
+|----------------------------------------------------------------------------------------------------------------------------------------------|
+|                                           Object Header (128 bits)                                        |     Object Status    | Lock Flag |
+|-----------------------------------------------------------------------------------------------------------|----------------------|-----------|
+|                     Mark Word (64 bits)                                        |   Klass Word (64 bits)   |                      |           |
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|  unused:25 | identity_hashcode:31 | unused:1 | age:4 | biased_lock:1 | lock:2  |  OOP to metadata object  |        Normal        |   0 01    |  无锁
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|  thread*:54 |       epoch:2       | unused:1 | age:4 | biased_lock:1 | lock:2  |  OOP to metadata object  |        Biased        |   1 01    |  偏向锁（单线程重入）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                        ptr_to_lock_record:62                         | lock:2  |                          |  Lightweight Locked  |   0 00    |  轻量锁（多线程交替执行）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                    ptr_to_heavyweight_monitor:62                     | lock:2  |                          |  Heavyweight Locked  |   0 10    |  重量锁（多线程竞争执行）
+|--------------------------------------------------------------------------------|--------------------------|----------------------|-----------|
+|                                                                      | lock:2  |                          |    Marked for GC     |   0 11    |  GC
+|----------------------------------------------------------------------------------------------------------------------------------------------|
+```
+
+2. 实例数据
+
+3. 填充数据（对齐字节，Java对象字节长度必须是8的倍数）
+
+## 代理
+
+#### 静态代理
+静态代理在使用时需要定义接口或者父类。
+
+- 继承
+代理对象继承目标对象，重写目标对象的方法。
+目标对象:
+```java
+public class UserDaoImpl {
+    public void login(){
+        System.out.println("login success...");
+    }
+}
+```
+代理对象：
+```java
+public class UserLogProxy extends UserDaoImpl{
+    @Override
+    public void login(){
+        System.out.println("---log---");
+        super.login();
+    }
+}
+```
+缺点：
+1.java是单继承，难以实现扩展
+2.如果每个类都需要代理，代理类会爆炸
+
+2.聚合
+目标对象和代理对象实现同一个接口，并且代理对象中包含抽象对象。
+抽象对象：
+```java
+public interface UserDao {
+    void login()
+}
+```
+目标对象：
+```java
+public class UserDaoImpl implements UserDao{
+    @Override
+    public void login(){
+        System.out.println("login success...");
+    }
+}
+```
+代理对象：
+```java
+public class UserLogImpl implements UserDao{
+    private UserDao target;
+    public UserLogImpl(UserDao target){
+        this.target = target;
+    }
+    @Override
+    public void login(){
+        System.out.println("---login---");
+        target.login();
+    }
+}
+```
+缺点：类爆炸
+
+#### 动态代理
+JDK动态代理
+1. 实现InvocationHandler接口来定义自己的InvocationHandler
+```java
+public class MyHandler implements InvocationHandler {
+    private Object object;
+    public MyHandler(Object object){
+        this.object = object;
+    }
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        // 前置处理
+        System.out.println("before log");
+        Object invoke = method.invoke(object, args);
+        // 后置处理
+        System.out.println("after log");
+        return invoke;
+    }
+}
+```
+2.
+
+
+
+## IO
+
+#### BIO
+*BIOServer.java*
+```java
+public class BIOServer {
+    static byte[] bytes = new byte[1024]
+    public static void main(String[] args){
+        try{
+            ServerSocket serverSocket = new ServerSocket();
+            serverSocket.bind(new InetSocketAddress(8080));
+
+            while(true){
+                // blocking
+                Socket socket = serverSocket.accept();
+                // blocking
+                int readBytes = socket.getInputStream().read(bytes);
+                String content = new String(bytes);
+                System.out.println(content);
+            }
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+}
+```
+*BIOClient.java*
+```java
+public class Client{
+    public static void main(String[] args){
+        try{
+            Socket socket = new Socket("127.0.0.1", 8081);
+            socket.connect(new InetSocketAddress(8080));
+            socket.getOutputStream().write("xxx".getBytes());
+        }c atch (IOException e){
+            e.printStackTrace();
+        }
+    }
+}
+```
+#### 缺点
+- 在不考虑多线程情况下，bio无法处理并发。
+- 如果开很多线程，碰到连接上但不活跃的时候，依然会阻塞在read阶段，浪费cpu资源
+
+#### 改进
+单线程处理并发(多路复用：多个网络连接复用同一个线程)
+```java
+public class BIOServer {
+
+    static byte[] bytes = new byte[1024];
+
+    static List<SocketChannel> socketChannelList = new ArrayList<SocketChannel>()；
+
+    public static void main(String[] args){
+        try{
+            ServerSocketChannel serverSocketChannel = new ServerSocketChannel();
+            serverSocketChannel.bind(new InetSocketAddress(8080));
+            // set serverSocket non-blocking
+            serverSocketChannel.configureBlocking(false);
+            while(true){
+
+                // non-blocking operation
+                SocketChannel socketChannel = serverSocket.accept();
+                if(socketChannel == null){
+                    // continue
+                } else {
+                    // set socket non-blocking
+                    socket.setConfig(false);
+                    list.add(socket);
+                }
+
+                for(SocketChannel channel: socketChannelList){
+                    // non-blocking operation
+                    ByteBuffer byteBuffer = ByteBuffer.allocate(512);
+                    int readBytes = channel.read(byteBuffer);
+
+                    if(readByes != 0){
+                        byteBuffer.flip(); //写->读
+                        System.out.println(new String(byteBuffer.array()));
+                    }
+                }
+            }
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+}
+```
+缺点：依然解决不了不活跃线程浪费cpu的问题，对每个线程是否接收数据作轮询太耗资源
+
+#### 再改进
+将上面for循环读数据的操作交给操作系统处理，操作系统会调用相关函数。比如linux的epoll和windows的select。
+
+*redis底层选用IO通信模型也是用到了epoll，epoll当有通信来的时候可以直接定位到那个socket，而不需要循环。所以比select效率高，能支持高并发高可用
+
+#### NIO
+> Non-blocking io uses a single thread or only a small number of multi-threads. Each connection shares a single thread. Thread resources can be released to handle other requests while waiting (without events). The main thread allocates resources to handle related events by notifying (waking up) the main thread through event-driven model when events such as accept/read/write occur. java.nio.channels.Selector is the observer of events in this model. It can register multiple events of SocketChannel on a Selector. When no event occurs, the Selector is blocked and wakes up the Selector when events such as accept/read/write occur in SocketChannel.(*[Analysis of NIO selector principle](https://programmer.ink/think/analysis-of-nio-selector-principle.html)*)
+
+![NIO Diagram](https://programmer.ink/images/think/108539a1a691325e31b8f18a04e2a52d.jpg)
+
+```java
+selector = Selector.open();
+
+ServerSocketChannel ssc = ServerSocketChannel.open();
+ssc.configureBlocking(false);
+ssc.socket().bind(new InetSocketAddress(port));
+
+ssc.register(selector, SelectionKey.OP_ACCEPT);
+
+while (true) {
+
+    // select() block, waiting for an event to wake up
+    int selected = selector.select();
+
+    if (selected > 0) {
+        Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
+        while (selectedKeys.hasNext()) {
+            SelectionKey key = selectedKeys.next();
+            if ((key.readyOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT) {
+                // Handling accept events
+            } else if ((key.readyOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ) {
+                // Handling read events
+            } else if ((key.readyOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE) {
+                // Handling write events
+            }
+            selectedKeys.remove();
+        }
+    }
+}
+```
+
+
 ## 面试
 1. mysql和tomcat是如何打破双亲委派机制的？tomcat自己的类加载机制？
 2. 有几种引用？强软弱虚
 
 
-## 参考
+### 参考
 周志明 《深入理解java虚拟机》

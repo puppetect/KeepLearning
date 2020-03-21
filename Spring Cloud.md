@@ -1,54 +1,4 @@
-# MicroService
-
-## Dubbo
-
-#### 简介
-
-Apache Dubbo是一款高性能Java RPC框架
-
-**RPC (Remote Procedure Call)**
-
-远程过程调用是一个**计算机通信协议**。该协议允许运行于一台计算机的程序调用另一台计算机的子程序，而程序员就像调用本地程序一样，无需额外地为这个交互作用编程。如果涉及的软件采用面向对象编程，那么远程过程调用亦可称作远程调用或远程方法调用，例：Java RMI。
-
-**service Mesh**
-??
-
-#### 工程
-
-**接口 interface**
-1.接口类
-**消费者 consumer**
-1. 启动类
-2. 配置文件
-```xml
-<dubbo:application name='consumerName'/>
-<dubbo:registry address="zookeeper://127.0.0.1:2181"/>
-<!-- generate proxy for the remote service, then can be used in the same way as local interface -->
-<dubbo:reference id="demoService" check="false" interface="com.xxx.DemoService"/>
-```
-
-**生产者 provider**
-1. 启动类
-2. 接口实现类
-3. 配置文件
-```xml
-<!-- provider's application name, used for tracing dependency relationship -->
-<dubbo:application name="providerName"/>
-<dubbo:registry address="zookeeper://127.0.0.1:2181"/>
-<!-- use dubbo protocol to export service on port 20880 -->
-<dubbo:protocol name="dubbo"/>
-<!-- service implementation, as same as regular local bean -->
-<bean id="demoService" class="com.xxx.DemoServiceImpl"/>
-<!-- declare the service interface to be exported -->
-<dubbo:service interface="com.xxx.DemoService" ref="demoService"/>
-```
-
-#### 实现
-1. Provider模块：提供API、实现API、暴露（启动tomcat, nettyServer）、服务本地注册、服务注册中心注册
-2. Consumer模块：拿接口名从注册中心获取服务地址、调用服务
-3. Registry模块：保存服务配置信息（服务名：List<URL>)
-4. RpcProtocol模块：基于Tomcat的HttpProtocol、基于Netty的DubboProtocol
-5. Framework模块：框架实现
+# Spring Cloud
 
 ## Spring Cloud Netflix
 
@@ -70,13 +20,16 @@ Apache Dubbo是一款高性能Java RPC框架
 4.restful风格
 
 #### 服务注册与发现组件
-- Eureka 追求高可用性(AP)，默认数据存在内存 
-- Zookeeper 追求数据强一致(CP)，默认数据存在磁盘 
+- Eureka 追求高可用性(AP)，默认数据存在内存
+- Zookeeper 追求数据强一致(CP)，默认数据存在磁盘
 
 #### 通信协议
 Spring CLoud 应用层通信协议： http
 Dubbo 应用层通信协议： rpc
 
+**RPC (Remote Procedure Call)**
+
+远程过程调用是一个**计算机通信协议**。该协议允许运行于一台计算机的程序调用另一台计算机的子程序，而程序员就像调用本地程序一样，无需额外地为这个交互作用编程。如果涉及的软件采用面向对象编程，那么远程过程调用亦可称作远程调用或远程方法调用，例：Java RMI。
 
 #### Eureka搭建
 **Eureka Server**
@@ -233,7 +186,7 @@ ApplicationResource.addInstance(info,...)
 *InstanceRegistry.java* 注册类
 ```java
 private void handleRegistration(info, ...){
-	//... 
+	//...
 	publishEvent(new EurekaInstanceReisteredEvent(this, info, ...));
 }
 ```
@@ -257,3 +210,78 @@ A: eureka会拿已经存在和当前要注册的注册信息的最后活跃时�
 - Ribbon / Feign / Spring CLoud LoadBalancer
 - 在客户端（即调用方）完成负载均衡，而不是类似于nginx在服务器端（被调用方）完成
 - 运用了eureka**服务注册与发现组件**功能，ribbon/feign能够从eureka发现有哪些组件，继而决定调用哪一个，并完成调用
+
+## Dubbo
+
+#### 简介
+
+Apache Dubbo是一款高性能Java RPC框架
+
+
+
+#### 工程
+
+**接口 interface**
+1.接口类
+**消费者 consumer**
+1. 启动类
+2. 配置文件
+```xml
+<dubbo:application name='consumerName'/>
+<dubbo:registry address="zookeeper://127.0.0.1:2181"/>
+<!-- generate proxy for the remote service, then can be used in the same way as local interface -->
+<dubbo:reference id="demoService" check="false" interface="com.xxx.DemoService"/>
+```
+
+**生产者 provider**
+1. 启动类
+2. 接口实现类
+3. 配置文件
+```xml
+<!-- provider's application name, used for tracing dependency relationship -->
+<dubbo:application name="providerName"/>
+<dubbo:registry address="zookeeper://127.0.0.1:2181"/>
+<!-- use dubbo protocol to export service on port 20880 -->
+<dubbo:protocol name="dubbo"/>
+<!-- service implementation, as same as regular local bean -->
+<bean id="demoService" class="com.xxx.DemoServiceImpl"/>
+<!-- declare the service interface to be exported -->
+<dubbo:service interface="com.xxx.DemoService" ref="demoService"/>
+```
+
+#### 实现
+1. Provider模块：提供API、实现API、暴露（启动tomcat, nettyServer）、服务本地注册、服务注册中心注册
+2. Consumer模块：拿接口名从注册中心获取服务地址、调用服务
+3. Registry模块：保存服务配置信息（服务名：List<URL>)
+4. RpcProtocol模块：基于Tomcat的HttpProtocol、基于Netty的DubboProtocol
+5. Framework模块：框架实现
+
+## Spring Cloud Function
+
+#### What's SCF
+- Promotes implementation of business logic as functions
+	- Supplier<O>
+	- Function<I, O>
+	- Consumer<I>
+- Uniformed programming model
+- Transparent type conversion
+- Function Composition
+- POJO functions (if it looks like a function it must be a function)
+- Reactive support
+- Arity (functions with multiple inputs/outputs)
+- Deployment of packaged functions (JARs or exploded archives)
+	- Boot configuration
+	- Simple Spring configuration
+	- Simple non-Spring packages
+- Integration with serverles platforms
+	- AWS
+	- Azure
+
+#### Core abstractions
+- Function Catalog
+	- Acts as a function registry
+	- Wraps functions to add additioal features
+- Function Registration
+	- Encapsulates required information about functions
+		- Input/Output types
+	- Used for manual function registration
