@@ -22,6 +22,9 @@
 `git branch --list`
 查看分支（包含远程分支）
 `git branch -a`
+删除track的文件
+`git rm <file>`
+
 
 #### 项目分支管理
 master: 主分支，一般不会在此分支上开发项目
