@@ -1,4 +1,5 @@
 # Git
+
 ## 基础命令
 拷贝项目
 `git clone <repository>`
@@ -25,8 +26,10 @@
 删除track的文件
 `git rm <file>`
 
+## 撤销操作
+https://sethrobertson.github.io/GitFixUm/fixup.html#discard_all_unpushed
 
-#### 项目分支管理
+## 项目分支管理
 master: 主分支，一般不会在此分支上开发项目
 dev: 开发分支，一般在此分支上开发
 
@@ -53,4 +56,38 @@ Repo
     ├── feature-vueAdmin-V2.0.0-20190919
     │   └── bug-101243-20191020
     └── feature-vueAdmin-V3.0.0-20190919
+```
+## gitignore
+```
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**
+!**/src/test/**
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+### VS Code ###
+.vscode/
 ```

@@ -74,10 +74,17 @@ public static void main | psvm
 扩大选区 | `alt + ⇧`
 缩小选区 | `alt + ⇩`
 移动选区 | `shift + alt + ⇧/⇩`
-下个相同 | `alt + J`
+下个相同 | `ctrl + G`
 所有相同 | `cmd + ctl + G`
 整理格式 | `cmd + alt + L`
 
+#### Run & Debug
+功能 | 快捷键
+--- | ---
+运行 | `ctrl + R`
+运行 | `ctrl + alt + R`
+调试 | `ctrl + D`
+调试 | `ctrl + alt + D`
 
 ### Hotswap
 [Reference](http://hotswapagent.org/mydoc_setup_intellij_idea.html)
