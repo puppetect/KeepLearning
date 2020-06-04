@@ -149,6 +149,8 @@ docker run --name varnish -v /Users/andong/Docker/varnish/default.vcl:/etc/varni
 ```
 ```
 docker run --name nginx -d -v /Users/andong/Docker/nginx/nginx.conf:/etc/nginx/nginx.conf -p 80:80 --net=net nginx
+docker run --name p-nginx -d -v /Users/andong/Docker/nginx/nginx.conf:/etc/nginx/nginx.conf -p 80:80 nginx
+
 ```
 ```
 docker run --name mongod --net=net -d -p 27017:27017 mongo

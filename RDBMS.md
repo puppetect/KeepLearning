@@ -31,7 +31,7 @@ sqlplus scott/tiger;    // 登陆普通用户scott
 #### 管理
 ```
 create user zrunker;    // 在管理员帐户下，创建用户zrunker
-alert user scott identified by tiger;    // 修改密码
+alter user scott identified by tiger;    // 修改密码
 ```
 
 #### 授予权限
