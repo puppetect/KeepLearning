@@ -515,7 +515,7 @@ Queue | BlockingDeque, BlockingQueue, Deque, TransferQueue
 
 方法
 structure | insert | retieve | retrieve&remove | replace
---- | --- | ---
+--- | --- | --- | --- | ---
 Set | add | - | remove | -
 List | add | get | remove | set
 LinkedList | add//offer | get//peek | remove/poll | set
