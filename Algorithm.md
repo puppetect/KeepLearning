@@ -426,6 +426,106 @@ O(1), O(n), O(nlogn), O(n<sup>2</sup>)等
 解题思想
 算法复杂度
 
+## 二分搜索 Binary Search
+定义
+二分搜索也称折半搜索，是一种在有序数组中查找某一特定元素的搜索算法
+
+运用前提
+- 数组必须是排好序的
+- 输入并不一定是数组，也可能是给定的一个区间的起始和终止的位置
+
+优点
+- 二分搜索也称对数搜索，其时间复杂度为O(lgn)，是一种非常高效的搜索
+
+缺点
+- 要求待查找的数组或区间是排好序的
+    - 若要求对数组进行动态地删除和插入操作并完成查找，平均时间复杂度会变为O(n)
+    - 采取自平衡的二叉查找树
+        - 可在O(nlogn)的时间内用给定的数据构建出一颗二叉查找树
+        - 可在O(logn)的时间内对数据进行搜索
+        - 可在O(logn)的时间内完成删除和插入操作
+当：输入的数组或区间是有序的，且不会常变动，要求从中找出一个满足条件的元素，宜采用二分搜索
+
+基本解题模板
+- 递归
+    - 优点是简洁
+    - 缺点是执行开销大
+```java
+int binarySearch(int[] nums, int target, int low, int high){
+    if(low > high) return -1;
+    int middle = low + (high - low) / 2;
+
+    if(nums[middle] == target){
+        return middle;
+    }
+    if(target < nums[middle]){
+        return binarySearch(nums, target, low, middle - 1);
+    } else {
+        return binarySearch(nums, target, middle + 1, high);
+    }
+}
+```
+三个关键点
+- 计算middle下标时，不能简单用(low + high)/2，这样可能会导致溢出
+- 取左半边和右半边区间时，左半边是[low, middle - 1]，右半边是[middle + 1, high]，这是两个闭区间。我们确定了middle点不是我们要找的，因此没有必要再把它加入到左右半边了。
+- 对于一个长度为奇数的数组，按照low + (high - low) / 2 来计算的话，middle就是正中间那个位置，对于一个长度为偶数的数组，middle就是正中间靠左边的一个位置。
+
+- 非递归
+```java
+int binarySearch(int[] nums, int target, int low, int high){
+    while(low <= high){
+        int middle = low + (high - low) /2;
+
+        if(nums[middle] == target){
+            return middle;
+        }
+        if(target < nums[high]){
+            high = middle - 1;
+        } else {
+            low = middle + 1;
+        }
+    }
+    return -1;
+}
+```
+
+## 贪婪 Greedy
+定义
+贪婪是一种在每一步选择中都采用在当前状态下最好或最优的选择，从而希望导致结果是最好或最优的算法。
+
+Leetcode #253
+
+## 大厂高频真题
+- 问题的剖析能力
+- 寻找并分析解决问题的方案
+- 代码的书写功底
+
+Leetcode #3 无重复字符的最长子串
+
+
+## Java常用数据结构和方法
+
+数据结构
+class | subclass
+--- | ---
+Set | AbstractSet, ConcurrentHashMap.KeySetView, ConcurrentSkipListSet, CopyOnWriteArraySet, EnumSet, HashSet, JobStateReasons, LinkedHashSet, TreeSet
+List | AbstractList, AbstractSequentialList, ArrayList, AttributeList, CopyOnWriteArrayList, LinkedList, RoleList, RoleUnresolvedList, Stack, Vector
+Map | AbstractMap, Attributes, AuthProvider, ConcurrentHashMap, ConcurrentSkipListMap, EnumMap, HashMap, Hashtable, Headers, IdentityHashMap, LinkedHashMap, PrinterStateReasons, Properties, Provider, RenderingHints, ScriptObjectMirror, SimpleBindings, TabularDataSupport, TreeMap, UIDefaults, WeakHashMap
+Queue | BlockingDeque, BlockingQueue, Deque, TransferQueue
+
+方法
+structure | insert | retieve | retrieve&remove | replace
+--- | --- | ---
+Set | add | - | remove | -
+List | add | get | remove | set
+LinkedList | add//offer | get//peek | remove/poll | set
+Vector | add | get | remove | set
+Stack | push | peek | pop | -
+Map | put | get/getOrDefault | remove | replace
+Queue | add/offer | element/peek | remove/poll | -
+Deque | addFirst/offerFirst/addLast/offerLast | getFirst/peekFirst/getLast/peekLast | removeFirst/pollFirst/removeLast/pollLast | -
+
+
 ## Regular Expression
 
 #### Formula
