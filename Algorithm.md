@@ -518,12 +518,12 @@ structure | insert | retieve | retrieve&remove | replace
 --- | --- | --- | --- | ---
 Set | add | - | remove | -
 List | add | get | remove | set
-LinkedList | add//offer | get//peek | remove/poll | set
+LinkedList | add/offer | get/peek | remove/poll | set
 Vector | add | get | remove | set
 Stack | push | peek | pop | -
-Map | put | get/getOrDefault | remove | replace
+Map | put | get | remove | replace
 Queue | add/offer | element/peek | remove/poll | -
-Deque | addFirst/offerFirst/addLast/offerLast | getFirst/peekFirst/getLast/peekLast | removeFirst/pollFirst/removeLast/pollLast | -
+Deque | addFirst/offerFirst</br>addLast/offerLast | getFirst/peekFirst</br>getLast/peekLast | removeFirst/pollFirst</br>removeLast/pollLast | -
 
 
 ## Regular Expression
