@@ -501,6 +501,20 @@ Leetcode #253
 - 代码的书写功底
 
 Leetcode #3 无重复字符的最长子串
+Leetcode #4 寻找两个有序数组的中位数 （#215 快速选择算法）
+Leetcode #23 合并k个排列链表
+
+Leetcode #56 合并区间
+Leetcode #435 无重叠区间
+Leetcode #269 火星字典
+Leetcode #772 基本计算器III
+
+## 大厂面试难题
+Leetcode #10 正则表达式
+Leetcode #84 柱状图最大的矩形
+Leetcode #336 回文对
+Leetcode #340 至多包含k个不同字符的最长字串
+Leetcode #407 接雨水II
 
 
 ## Java常用数据结构和方法
