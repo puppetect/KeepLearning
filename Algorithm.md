@@ -539,6 +539,12 @@ Map | put | get | remove | replace
 Queue | add/offer | element/peek | remove/poll | -
 Deque | addFirst/offerFirst</br>addLast/offerLast | getFirst/peekFirst</br>getLast/peekLast | removeFirst/pollFirst</br>removeLast/pollLast | -
 
+## 刷题
+
+按照力扣题目分类做题
+树 > 图论 > 递归、回溯 > DFS、BFS > 动态规划 > 字符串和数组
+
+https://github.com/jeantimex/javascript-problems-and-solutions
 
 ## Regular Expression
 
