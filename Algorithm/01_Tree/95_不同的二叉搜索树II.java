@@ -1,6 +1,4 @@
-/*
-给定一个二叉树，返回它的中序 遍历。
-*/
+/*给定一个整数 n，生成所有由 1 ... n 为节点所组成的 二叉搜索树 。*/
 
 /**
  * Definition for a binary tree node.
@@ -8,7 +6,13 @@
  *     int val;
  *     TreeNode left;
  *     TreeNode right;
- *     TreeNode(int x) { val = x; }
+ *     TreeNode() {}
+ *     TreeNode(int val) { this.val = val; }
+ *     TreeNode(int val, TreeNode left, TreeNode right) {
+ *         this.val = val;
+ *         this.left = left;
+ *         this.right = right;
+ *     }
  * }
  */
 class Solution {
