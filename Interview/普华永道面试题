@@ -1,0 +1,243 @@
+普华永道面试题
+
+- doGet() & doPost() 区别
+- Agile的模式, 和waterfall区别
+- hashmap底层实现原理
+- hibernate一级二级缓存
+- ajax实现
+- serizable实现
+- 如何预防二次form提交
+一个是用struts的token, 一个是用JS把button给disable掉。
+- 多线程
+- OVERLOAD   VS    OVERRIDE
+- STRING     VS    STRINGBUFFER      VS    STRINGBUILDER
+- HOW TO UNDERSTAND OBJECT-ORIENTED CONCEPT IN JAVA
+Encapsulation, Inheritance, polymorphism
+- 手写冒泡排序
+- 用英文描述一个设计模式
+- JVM机制
+- hibernate机制
+- 各种集合
+- SSH框架 ssm框架
+
+
+- HTML5 NEW FEATURES
+   1. New Doctype
+
+   2. No more types for scripts and links
+
+   3. The semantic for header and footer
+
+   4. Hgroup
+
+   5. Mark Element
+
+   6. Figure Element
+
+   7. Small Element Redefined
+
+   8. PlaceHolder
+
+   9. Required Attribute
+
+   10. Autofocus Attribute
+
+   11. Audio support
+
+   12. Video support
+
+   13. Preload attribute in video element
+
+   14. Display control
+
+   15. Regular Expression 
+
+- <DIV> VS <IFRAME>
+- HOW TO CREATE FUNCTION FOR OBJECT IN JS
+- HTTP PROTOCAL
+- GET    VS    POST
+   > Get is used to get data from the server, and POST is used to transfer data to server;
+
+   > Post is much safer than Get, for Get, the data is placed in the request of URL, some private data in URL may be seen by the third party. Also, user can see the submitted data from browser directly. As for POST, all operation is invisible.
+
+   > The amount of data transmitted by GET is much smaller than POST, mainly due to the limitation of the length of URL. Then, POST can be used to transmit a large amount of data, so it can be used to upload file.
+- WEBSTORAGE & JSON
+
+类的继承
+是JAVA面向对象的主要特性，子类可使用父类的所有功能，也可拓展新的功能。一个类只能继承一个父类，但是可以实现多个接口。
+
+构造函数的调用顺序
+构造函数一般用来初始化对象，给对象赋值。 Object---->B的域----->B构造函数里的方法体----->A的域----->A构造函数。
+
+子类对父类函数重写
+继承父类后 同名且同参同返回
+
+子类的加载顺序
+
+父类--静态变量
+父类--静态初始化块
+子类--静态变量
+子类--静态初始化块
+*************in main***************
+父类--变量
+父类--初始化块
+父类--构造器
+子类--变量
+子类--初始化块
+子类--构造器
+*************second subClass***************
+父类--变量
+父类--初始化块
+父类--构造器
+子类--变量
+子类--初始化块
+子类--构造器
+
+JVM class loader对类是如何加载的和加载顺序
+首先，总共有四个加载器：bootstrap(核心)、exptension(扩展)、appclassloader（system）、URLclassloader(远程)。
+
+继承关系，从高到低，ABCD 如果B调用某方法 会首先请求A去找 A没找到 则B自己找 B也没找到 则classnotfound 而不会去请求C找
+
+函数的可视范围
+
+
+函数被重写原理
+首先弄明白JAVA中的四个特性：组合、继承、重载、重写。组合：一个类引用另一个类，而实际运行中，继承其实就是隐式的组合，也就是在子类中保存一个实例对象super，并指向父类。 所以，函数被重写的原理就是：在执行中，如需调用某方法，先在子类中找，如果没找到，则会去在父类中找，如果找到了，也就是重载了。
+
+集合类的分类
+collection(list<arrayList\linkendList\vector>set<>) map(hashMap\hashTable\weakHashTable)
+
+区别 arraylist非同步 满增50% vector同步满增100% set不可重复
+
+SET，LIST，MAP的实现类和之间的关系
+set list都实现collection 三者都为接口 不可实例化
+
+TREEMAP的特性
+有序
+
+TREESET的特性
+唯一 有序 不为空
+
+LIST的实现类之间的区别
+arraylist linkendlist vector
+
+不同集合类在不同情况下的应用
+快速查询 arraylist 批量增加 linkendlist
+增删查 hashmap 遍历treemap
+
+HASH的原理
+hash其实就是以空间换时间 将至转成HASH值 根据数组长度取余 将余数作为该数据数组下标 如果被占用 则重新HASH+1 数组是线性结构中定位最快的
+
+HASHMAP，HASHSET
+
+线程
+
+
+线程的不同实现
+继承thread或者实现runnable
+
+THREAD和RUNNABLE的区别和关系
+thread为继承类 runnable为接口
+Thread运行在父类的run方法中，Runnable运行在实现Runnable接口的子类对象run方法中。
+runnable可以打破一个类只能继承一个父类的局限性且适合资源共享
+thread也是实现runnable
+
+RUNNABLE和CALLABLE
+
+
+如何捕捉线程异常
+set uncaughExceiption
+
+为什么要用EXECUTOR
+
+高并发解决方案
+HTML静态化 负载均衡 图片服务器分离 数据库集群 缓存
+
+如何使用synchronized关键字
+同步
+
+Producer and consumer
+
+
+Reflection如何使用，在什么情况下用
+反射是JAVA的特性之一，能够通过getClass 获取到某一个Class对象 ，并查看该Class的基本情况
+妈蛋 具体什么场景下使用反射哥也不知道好吗。。。hibernate不就是用的反射吗 利用反射可以改变类的属性！
+
+Generics的作用
+代码规范话 减少变异后的强制类型转换 健壮 安全
+
+I/O
+
+
+Readers and Writers
+
+
+DATABASE JDBC
+
+
+SSH 相关问题
+
+
+SPRING相关问题
+
+
+IOC AOP实现
+
+
+SPRING BEAN的scope的定义
+singleton 共享实例 prototype 每次请求new一个实例 request 每次请求new一个实例 但仅当前httprequest内有效
+
+JQUERY事件绑定
+$('#button').blind(function(){alert()}})
+
+AJAX
+
+Java 死锁，如何解决
+JAVA中死锁 我靠 这玩意儿一般原因都很复杂的 根本没有万金油式的解决方案好吗 我们能做的只能避免 慎用synchronize 多线程是尽量按顺序执行
+
+最近项目介绍,问些项目里相关问题如struts原理
+set List区别
+equaIs hashcode及其原理一跟地址有关吗
+
+
+最熟悉项目介绍,围绕项目中的ssh提问,例一对多如何定义,可不可以用List,与set区别
+sQL调优
+数据库索引
+
+主要问的问题：
+1）spring的IOC和AOP
+
+
+2）struts1和struts2的区别
+
+
+3）多线程，死锁等
+
+
+4）hibernate的缓存分类，实体状态，一对多和多对多实现等
+
+
+5）spring，struts，hibernate如何集成
+
+
+6）set，list等集合的相关特性
+
+7）实现不重复的100个随机数的方法
+
+8）hibernate中inverse的使用
+控制映射关系 默认为FALSE 所以 在多对多中 如果某一表数据变化 需要多张表都更新 最好将某张表设为TRUE 则不会重复更新
+
+9）spring中事务的实现
+像Struts2一样，都是凭借强大的拦截器功能对业务逻辑方法的调用进行拦截，然后又BeanNameAutoProxyCreator自动生成事务代理，最后送事务管理器，统一管理
+
+10）常用的设计模式
+
+11）hash code的作用
+提升效率 比如set集合 它是无序不重复的 在对SET新增记录时 为了满足不重复 则在插入之前必须先equals一个个校验存不存在 效率低下 这里 HASHCODE就该上场了 每次新增，先HASH一把 然后将值直接放到HASH值相应的地址 如果改空间被占用 则再equals一把
+如果相等 则不存 不等则HASH+1
+
+如果一张表中某个字段 经常更新 且 经常查询
+
+如果加上索引 更新则变慢 不加 查询则变慢
+
+怎么解决？
