@@ -519,6 +519,8 @@ Leetcode #407 接雨水II
 
 ## Java常用数据结构和方法
 
+<img src="../image/java-collection-hierarchy.jpeg">
+
 数据结构
 class | subclass
 --- | ---
