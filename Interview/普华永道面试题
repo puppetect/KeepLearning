@@ -17,6 +17,52 @@ GET request is typically used for operation without side effects such as read op
 Encapsulation, Inheritance, polymorphism
 - 手写冒泡排序
 - 用英文描述一个设计模式
+Singleton pattern is a creational pattern which allows only one instance of a class to be created which will be available to the whole application. The major advantage of it is it saves memory because the single instance is reusable; there is no need to create another object at each request. For example, we can use a single database connection shared by multiple objects instead of creating a database connection for every request.
+The major drawbacks of using singleton pattern are:singleton causes code to be tightly coupled. The singleton object is exposed globally and is available to the whole application. Thus, classes useing this object become tightly coupled; any change in the global object will affect all other classes using it.; They hide dependencies instead of exposing them; Singleton pattern does not support inheritance; Singleton printicple can be violated by techniques such as cloning. If an application is running on multiple JVMs, then singleton might be broken.
+
+- Which design pattern will you use to create a complex object?
+Builder design pattern is used to construct a complex object. It's designed to solve the issues with factory and abstract design patter.
+
+- Why use a factory class to instantiate a class when we can use new operator?
+Factory classes provide flexibility in terms of design: Factory pattern results in more decoupled code as it allows us to hide creational logic from dependent code; It allows us to introduce an IoC container; It gives you a lot more flexibility when it comes time to change the application as our creational logic is hidden from dependent code
+
+- What's the difference between factory and abstract factory pattern?
+Both factory and abstract factory are creational design pattern. The major difference between them is: a factory pattern creates an object through inheritance and produce only one Product. An abstract factory pattern creates the object through composition and produce families of products
+
+- What is observer design pattern in Java?
+Observer design pattern is one of the behavior design pattern which defines one-to-many dependencies between objects and is useful when we are interestd in a state of an object and we wat to get notified when there is any change in state of object. In Observer pattern, when one object changes its state, all its dependent objects are automatically notified, the object is called subject and dependents are called observers. Java provides libiraries to implement Observer pattern using java.util.Observable class and java.util.Observer interface
+
+- Difference between strategy and state pattern in Java?
+Both strategies are similar in practice but they have differenct implementations: Strategy design pattern defines a set of algorithms to carry out a specific behavior whereas state design pattern allows an object to alter its behavior when it''s internal state changes; Strategy pattern doesn't allow us to store a reference to the context object whereas state design pattern stores the reference to the context object which contains them; In strategy design pattern the client is aware of the strategy which is chosen for implementation whereas in state design pattern the client does not decide which state to be chosen for implementation; Strategy pattern deals with HOW an object performs a certain task whereas state pattern deals with what an object is; There is no successor/predecessor relationship present in strategy pattern whereas in state pattern states are related to one/another as successor/predecessor
+
+- Give an example of decorator design pattern?
+The decorator pattern, also known as a structural pattern is used to add additional fucntionality to a particular object at runtime. It wraps the original object through decorator object. For example, when you are buying a burgur, you can customize it by adding extra filling and sauces, now the cost of these items have to be added to the final price. The customization will differ from customer to customer. Creating different classes of burger with different fillings will end up creating a lot of classes. Decorator solves this problem by extending the fuctionality of single burger calss at runtime based on customer request
+
+- What's the benifit of using prototype pattern over creating an instance using the new keyword?
+Sometimes, object creation is heavyweight and requires a lot of resources, creating a new instance will impact the performance. In such cases, a prototype pattern is used which refers to creating duplicate objects. In prototype pattern, if a similar object is already present then cloning is done keeping performance in mind.
+
+- What's the difference between Adapter vs Proxy vs Facade pattern?
+Adapter let you connect two components, which wouldn't be working because of imcompatible intercaes
+Decorator pattern adds new functionalities at runtime. It allows you to enrich object, even after its creation
+Facade provides simpler interfaces. So instead of client directly accessing individual components of a system, it uses facase (ie REST)
+Proxy prevents client to directly acessing object, instead it act as real object and can provide alternate behavior(cache, delay) or forward request to original object
+
+- What's the difference between Singleton vs Static class?
+Static class provides better performance than singleton pattern, because static methods are bonded on compile time
+Static methods in java cannot be overriden
+Static classes are hard to mock and consequently harder to test than singletons, which are pretty easy to mock and thus easy to test
+Should not maintain state in static class
+Singleton classes can be lazy loaded if tis an heavy object but static class doesn't have such advantages and are always eagerly loaded
+
+- What's the difference between Flyweight vs Singleton vs Factory
+Flyweigth: array cache of immutable objects, creates the object if it does not exists
+Factory: creates the mutable new instance of the object, return exception if no possibility found
+Singleton: one instance of mutable object
+
+- What's the difference between Factory vs Dependency Injection pattern?
+Factory: your dependent class is dependent on factory; need to mock factory to test the class
+Dependency Injection: takes out the dependency ompletely, provides better decoupling; gives simple unit testing of classes
+
 - JVM机制
 - hibernate机制
 - 各种集合
