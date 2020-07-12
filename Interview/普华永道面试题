@@ -1,6 +1,8 @@
 普华永道面试题
 
 - doGet() & doPost() 区别
+GET request is typically used for operation without side effects such as read operation. POST request is used for side effects operation such as write/update.
+
 - Agile的模式, 和waterfall区别
 - hashmap底层实现原理
 - hibernate一级二级缓存
@@ -165,7 +167,9 @@ TREESET的特性
 唯一 有序 不为空
 
 LIST的实现类之间的区别
-arraylist linkendlist vector
+arraylist
+
+linkendlist vector
 
 不同集合类在不同情况下的应用
 快速查询 arraylist 批量增加 linkendlist
@@ -211,6 +215,10 @@ Reflection如何使用，在什么情况下用
 
 Generics的作用
 代码规范话 减少变异后的强制类型转换 健壮 安全
+In a nutshell, generics enable types (classes and interfaces) to be parameters when defining classes, interfaces and methods. Much like the more familiar formal parameters used in method declarations, type parameters provide a way for you to re-use the same code with different inputs. The difference is that the inputs to formal parameters are values, while the inputs to type parameters are types.
+Stronger type checks at compile time.
+Elimination of casts
+Enabling programmers to implement generic algorithms.
 
 I/O
 
