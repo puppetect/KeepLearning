@@ -42,3 +42,10 @@ a. 冲突时，会在这个位置挂一个链表，让多个key-value对，同�
 ## 并发
 1. synchronized关键字的底层原理是什么？
 2. 聊聊你对CAS的理解以及其底层实现原理
+
+普华永道
+1. 在for循环中写一个计时器，先隔2000毫秒打印1，再隔2000毫秒打印2….依次每间隔2000毫秒打印出0到9.
+2. vue的生命周期
+3. redux的使用
+4. css如何实现图标
+5. flex的使用(flex-direction, justify-content, align-items, align-self)
